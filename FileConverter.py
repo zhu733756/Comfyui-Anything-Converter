@@ -21,7 +21,7 @@ class JsonCombiner:
             "optional": {
                 "indent": ("INT", {"default": 2}),
                 "output_mode": (["file", "string"], {"default": "string"}),
-                "output_path": ("STRING", {"default": ""}),  # ����空则使用临时文件
+                "output_path": ("STRING", {"default": ""}),  # 留空则使用临时文件
             }
         }
 
@@ -49,7 +49,7 @@ class JsonCombiner:
             merged = {**b, **a}
 
         if indent <= 0 or indent is None:
-            indent==None
+            indent = None
         if output_mode == "file":
             if not output_path.strip():
                 fd, output_path = tempfile.mkstemp(suffix=".json", text=True)
@@ -58,9 +58,9 @@ class JsonCombiner:
                 Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
             with open(output_path, "w", encoding="utf-8") as f:
-                json.dump(merged, f, ensure_ascii=False, separators=(',', ':'))
+                json.dump(merged, f, ensure_ascii=False, separators=(',', ':') if indent is None else (',', ': '))
             return (output_path,)
-        else: 
+        else:
             return (json.dumps(merged, ensure_ascii=False, indent=indent),)
 
     # ---------- 工具 ----------
@@ -86,13 +86,14 @@ class LineConverter:
             "required": {
                 "input": ("STRING", {"multiline": True, "default": ""}),
                 "input_mode": (["file", "string"], {"default": "file"}),
-                "covert_mode": (["regex", "plain"], {"default": "regex"}),
+                "convert_mode": (["regex", "plain", "dedup", "merge"], {"default": "regex"}),
                 "pattern": ("STRING", {"default": ""}),
                 "repl": ("STRING", {"default": ""}),
+                "delimiter": ("STRING", {"default": ","}),  # 新增分隔符参数
             },
             "optional": {
                 "output_mode": (["file", "string"], {"default": "string"}),
-                "output_file": ("STRING", {"default": ""}), 
+                "output_file": ("STRING", {"default": ""}),
             }
         }
 
@@ -101,7 +102,7 @@ class LineConverter:
     FUNCTION = "convert"
     CATEGORY = "FileConverter"
 
-    def convert(self, input, input_mode, covert_mode, pattern, repl, output_mode="", output_file=""):
+    def convert(self, input, input_mode, convert_mode, pattern, repl, delimiter, output_mode="", output_file=""):
         if input_mode == "file":
             if not os.path.isfile(input):
                 raise FileNotFoundError(input)
@@ -111,25 +112,52 @@ class LineConverter:
         else:
             lines = input.splitlines()
 
-        flags = re.IGNORECASE if covert_mode == "regex" else 0
-        if covert_mode == "regex":
-            def _sub(line):
-                return re.sub(pattern, repl, line, flags=flags)
-        else:  # plain
-            def _sub(line):
-                return line.replace(pattern, repl)
-
-        new_lines = [_sub(line) for line in lines]
+        if convert_mode == "regex":
+            flags = re.IGNORECASE
+            new_lines = [re.sub(pattern, repl, line, flags=flags) for line in lines]
+        elif convert_mode == "plain":
+            new_lines = [line.replace(pattern, repl) for line in lines]
+        elif convert_mode in ["dedup", "merge"]:
+            new_lines = self._process_lines(lines, delimiter, convert_mode)
+        else:
+            raise ValueError(f"Unsupported convert_mode: {convert_mode}")
 
         if output_mode == "file":
             if not output_file.strip():
-                output_file = input  
+                output_file = input
             else:
                 Path(output_file).parent.mkdir(parents=True, exist_ok=True)
-
+            
             with open(output_file, "w", encoding="utf-8") as f:
-                f.writelines(new_lines)
+                for line in new_lines:
+                    f.writelines(line)
 
             return (output_file,)
-        else:  
-            return ("".join(new_lines),)
+        else:
+            return ("\n".join(new_lines),)
+          
+    def _process_lines(self, lines, delimiter, mode):
+      seen = {}
+      new_lines = []
+
+      for line in lines:
+          fields = line.strip().split(delimiter)
+          if fields:
+              key = fields[0]
+              if mode == "dedup":
+                  if key not in seen:
+                      seen[key] = True
+                      new_lines.append(line)
+              elif mode == "merge":
+                  if key not in seen:
+                      seen[key] = fields[1:]  # 存储后续字段
+                  else:
+                      seen[key] = list(set(seen[key] + fields[1:]))  # 合并并去重
+
+      # 生成最终的合并后行
+      if mode == "merge":
+          for key, values in seen.items():
+              merged_line = delimiter.join([key] + values)
+              new_lines.append(merged_line)
+
+      return new_lines

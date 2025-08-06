@@ -89,7 +89,7 @@ class LineConverter:
                 "convert_mode": (["regex", "plain", "dedup", "merge"], {"default": "regex"}),
                 "pattern": ("STRING", {"default": ""}),
                 "repl": ("STRING", {"default": ""}),
-                "delimiter": ("STRING", {"default": ",|，"}),  # 新增分隔符参数
+                "delimiter": ("STRING", {"default": "[,|，]"}),  # 新增分隔符参数
             },
             "optional": {
                 "output_mode": (["file", "string"], {"default": "string"}),
@@ -162,10 +162,10 @@ class LineConverter:
 
       return new_lines
     
-# if __name__ == "__main__":
-#     converter = LineConverter()
-#     input_text = "大主宰,林动\n斗破苍穹,小薰儿\n斗破苍穹,消炎"
-#     result = converter.convert(input_text, "string", "merge", "", ",|，", ",", "string")
-#     print(result)
-#     result = converter.convert(input_text, "string", "merge", "", ",", ",", "string")
-#     print(result)
+if __name__ == "__main__":
+    converter = LineConverter()
+    input_text = "大主宰,林动\n斗破苍穹,小薰儿\n斗破苍穹,消炎"
+    result = converter.convert(input_text, "string", "merge", "", "[,|，]", ",", "string")
+    print(result)
+    result = converter.convert(input_text, "string", "merge", "", ",", ",", "string")
+    print(result)

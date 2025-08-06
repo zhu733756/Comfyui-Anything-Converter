@@ -5,6 +5,7 @@
 ### 概述
 
 `ComfyUI-File-Converter` 包含两个主要节点：
+
 - **Json Combiner**：合并两个 JSON 文件或字符串。
 - **Line Converter**：按行正则替换或字符串处理文本。
 
@@ -23,7 +24,3 @@
 ### 贡献
 
 欢迎贡献代码或报告问题。请提交 Pull Request 或在 Issues 中提出您的问题。
-
-### 许可证
-
-此项目根据 MIT 许可证授权。

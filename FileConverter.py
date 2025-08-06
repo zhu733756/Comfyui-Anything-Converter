@@ -58,7 +58,7 @@ class JsonCombiner:
                 Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
             with open(output_path, "w", encoding="utf-8") as f:
-                json.dump(merged, f, ensure_ascii=False, indent=indent)
+                json.dump(merged, f, ensure_ascii=False, separators=(',', ':'))
             return (output_path,)
         else: 
             return (json.dumps(merged, ensure_ascii=False, indent=indent),)

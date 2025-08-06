@@ -141,7 +141,7 @@ class LineConverter:
       new_lines = []
 
       for line in lines:
-          fields = re.split(re.escape(delimiter), line.strip())
+          fields = re.split(delimiter, line.strip())
           if fields:
               key = fields[0]
               if mode == "dedup":
@@ -157,15 +157,17 @@ class LineConverter:
       # 生成最终的合并后行
       if mode == "merge":
           for key, values in seen.items():
-              merged_line = delimiter.join([key] + values)
+              merged_line = ",".join([key] + values)
               new_lines.append(merged_line)
 
       return new_lines
     
 if __name__ == "__main__":
     converter = LineConverter()
-    input_text = "大主宰,林动\n斗破苍穹,小薰儿\n斗破苍穹,消炎"
-    result = converter.convert(input_text, "string", "merge", "", "[,|，]", ",", "string")
+    input_text = '''大主宰，林动
+斗破苍穹，小薰儿
+斗破苍穹，消炎'''
+    result = converter.convert(input_text, "string", "merge", "", "", "[,|，]", "string")
     print(result)
-    result = converter.convert(input_text, "string", "merge", "", ",", ",", "string")
+    result = converter.convert(input_text, "string", "merge", "", ",", "，", "string")
     print(result)

@@ -162,6 +162,71 @@ class LineConverter:
 
       return new_lines
     
+class FileDictConverter:
+    """
+    遍历给定的字符串或文件内容，当其中有 key 存在于给定的 dict 中时，把 key 指定的内容替换成 dict 对应的 value
+    """
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "input": ("STRING", {"multiline": True, "default": ""}),
+                "input_mode": (["file", "string"], {"default": "string"}),
+                "dict_input": ("STRING", {"multiline": True, "default": ""}),
+                "dict_mode": (["file", "string"], {"default": "string"}),
+            },
+            "optional": {
+                "output_mode": (["file", "string"], {"default": "string"}),
+                "output_file": ("STRING", {"default": ""}),
+            }
+        }
+
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("output",)
+    FUNCTION = "convert"
+    CATEGORY = "FileConverter"
+
+    def convert(self, input, input_mode, dict_input, dict_mode, output_mode="string", output_file=""):
+        def _load_content(content, mode):
+            """加载输入内容"""
+            if mode == "file" and os.path.isfile(content.strip()):
+                with open(content.strip(), "r", encoding="utf-8") as f:
+                    return f.read()
+            else:
+                return content
+
+        def _load_dict(d, mode):
+            """加载替换字典"""
+            if mode == "file" and os.path.isfile(d.strip()):
+                with open(d.strip(), "r", encoding="utf-8") as f:
+                    return json.load(f)
+            else:
+                return json.loads(d)
+
+        # 加载输入内容
+        input_content = _load_content(input, input_mode)
+        # 加载替换字典
+        replace_dict = _load_dict(dict_input, dict_mode)
+
+        # 替换逻辑
+        for key, value in replace_dict.items():
+            input_content = input_content.replace(key, value)
+
+        # 输出处理
+        if output_mode == "file":
+            if not output_file.strip():
+                output_file = tempfile.mkstemp(suffix=".txt", text=True)[1]
+            else:
+                Path(output_file).parent.mkdir(parents=True, exist_ok=True)
+
+            with open(output_file, "w", encoding="utf-8") as f:
+                f.write(input_content)
+            return (output_file,)
+        else:
+            return (input_content,)
+
+
+# 示例用法
 if __name__ == "__main__":
     converter = LineConverter()
     input_text = '''大主宰，林动
@@ -171,3 +236,10 @@ if __name__ == "__main__":
     print(result)
     result = converter.convert(input_text, "string", "merge", "", ",", "，", "string")
     print(result)
+    
+    
+    converter = FileDictConverter()
+    input_text = "Hello, world! This is a test."
+    replace_dict = '{"world": "Earth", "test": "example"}'
+    output = converter.convert(input_text, "string", replace_dict, "string")
+    print(output)

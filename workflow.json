@@ -1,0 +1,104 @@
+{
+  "last_node_id": 9,
+  "last_link_id": 8,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "FileConverter.JsonCombiner",
+      "pos": [100, 100],
+      "inputs": [],
+      "outputs": [
+        { "name": "output", "type": "STRING", "links": [4] }
+      ],
+      "widgets_values": [
+        "test_json_a.json",
+        "test_json_b.json",
+        "deep_merge",
+        "string",
+        ""
+      ]
+    },
+    {
+      "id": 2,
+      "type": "FileConverter.JsonCombiner",
+      "pos": [100, 200],
+      "inputs": [],
+      "outputs": [
+        { "name": "output", "type": "STRING", "links": [5] }
+      ],
+      "widgets_values": [
+        "test_json_a.json",
+        "test_json_b.json",
+        "a_first",
+        "string",
+        ""
+      ]
+    },
+    {
+      "id": 3,
+      "type": "FileConverter.JsonCombiner",
+      "pos": [100, 300],
+      "inputs": [],
+      "outputs": [
+        { "name": "output", "type": "STRING", "links": [6] }
+      ],
+      "widgets_values": [
+        "test_json_a.json",
+        "test_json_b.json",
+        "b_first",
+        "string",
+        ""
+      ]
+    },
+    {
+      "id": 4,
+      "type": "FileConverter.FilePreview",
+      "pos": [400, 100],
+      "inputs": [
+        { "name": "input_file", "type": "STRING", "link": null }
+      ],
+      "outputs": [],
+      "widgets_values": [
+        "deep_merge_output.json",
+        10,
+        "file",
+        "deep_merge_preview.txt"
+      ]
+    },
+    {
+      "id": 5,
+      "type": "FileConverter.FilePreview",
+      "pos": [400, 200],
+      "inputs": [
+        { "name": "input_file", "type": "STRING", "link": null }
+      ],
+      "outputs": [],
+      "widgets_values": [
+        "a_first_output.json",
+        10,
+        "file",
+        "a_first_preview.txt"
+      ]
+    },
+    {
+      "id": 6,
+      "type": "FileConverter.FilePreview",
+      "pos": [400, 300],
+      "inputs": [
+        { "name": "input_file", "type": "STRING", "link": null }
+      ],
+      "outputs": [],
+      "widgets_values": [
+        "b_first_output.json",
+        10,
+        "file",
+        "b_first_preview.txt"
+      ]
+    }
+  ],
+  "links": [
+    { "from_node": 1, "from_field": "output", "to_node": 4, "to_field": "input_file" },
+    { "from_node": 2, "from_field": "output", "to_node": 5, "to_field": "input_file" },
+    { "from_node": 3, "from_field": "output", "to_node": 6, "to_field": "input_file" }
+  ]
+}

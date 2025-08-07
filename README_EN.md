@@ -18,6 +18,7 @@ ComfyUI-File-Converter includes two main nodes:
 
 ### Usage
 
-Locate the Json Combiner and Line Converter nodes in the ComfyUI node list and drag them onto the canvas.
-Configure the node parameters and run the workflow to ensure everything works as expected.
-Check the workflow.json file.
+- Locate the Json Combiner and Line Converter nodes in the ComfyUI node list and drag them onto the canvas.
+- Configure the node parameters and run the workflow to ensure everything works as expected.
+- Check the workflow.json file:
+![workflow.json](workflow.png)

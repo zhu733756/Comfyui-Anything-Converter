@@ -20,7 +20,8 @@
 
 - 在 ComfyUI 的节点列表中找到 `Json Combiner` 和 `Line Converter` 节点，并将它们拖放到画布上。
 - 配置节点参数并运行工作流，以确保一切正常工作。
-- 查看 workflow.json
+- 查看 workflow.json:
+![workflow.json](workflow.png)
 
 ### 贡献
 

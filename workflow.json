@@ -1,104 +1,297 @@
 {
-  "last_node_id": 9,
-  "last_link_id": 8,
+  "id": "6d07737f-8900-4f5f-93a1-2b4dbfd27d01",
+  "revision": 0,
+  "last_node_id": 24,
+  "last_link_id": 15,
   "nodes": [
+    {
+      "id": 4,
+      "type": "ShowText|pysssss",
+      "pos": [
+        2325.886474609375,
+        -15.559091567993164
+      ],
+      "size": [
+        278.4403381347656,
+        237.76394653320312
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 10
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "shape": 6,
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-custom-scripts",
+        "ver": "1.2.5",
+        "Node name for S&R": "ShowText|pysssss"
+      },
+      "widgets_values": [
+        "output/testjson.json"
+      ]
+    },
     {
       "id": 1,
       "type": "FileConverter.JsonCombiner",
-      "pos": [100, 100],
+      "pos": [
+        1711.6156005859375,
+        -88.4908447265625
+      ],
+      "size": [
+        513.7230834960938,
+        377.1647644042969
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
       "inputs": [],
       "outputs": [
-        { "name": "output", "type": "STRING", "links": [4] }
+        {
+          "name": "output",
+          "type": "STRING",
+          "links": [
+            10
+          ]
+        }
       ],
+      "properties": {
+        "aux_id": "zhu733756/Comfyui-File-Converter",
+        "ver": "dd288e4c734439480e2abd10e5b227da16495997",
+        "Node name for S&R": "FileConverter.JsonCombiner"
+      },
       "widgets_values": [
-        "test_json_a.json",
-        "test_json_b.json",
-        "deep_merge",
+        "{\"name\": \"Alice\",\"age\": 20,\"skills\": [\"Python\", \"ComfyUI\",\"SASS\"],\"hobbies\": [\"reading\", \"coding\"],\"x\":\"yyy\"}",
+        "output/testjson.json",
         "string",
-        ""
-      ]
-    },
-    {
-      "id": 2,
-      "type": "FileConverter.JsonCombiner",
-      "pos": [100, 200],
-      "inputs": [],
-      "outputs": [
-        { "name": "output", "type": "STRING", "links": [5] }
-      ],
-      "widgets_values": [
-        "test_json_a.json",
-        "test_json_b.json",
-        "a_first",
-        "string",
-        ""
-      ]
-    },
-    {
-      "id": 3,
-      "type": "FileConverter.JsonCombiner",
-      "pos": [100, 300],
-      "inputs": [],
-      "outputs": [
-        { "name": "output", "type": "STRING", "links": [6] }
-      ],
-      "widgets_values": [
-        "test_json_a.json",
-        "test_json_b.json",
+        "file",
         "b_first",
+        2,
+        "file",
+        "output/testjson.json",
+        [
+          false,
+          true
+        ],
+        [
+          false,
+          true
+        ]
+      ]
+    },
+    {
+      "id": 20,
+      "type": "FileConverter.LineConverter",
+      "pos": [
+        1757.2767333984375,
+        370.8598327636719
+      ],
+      "size": [
+        400,
+        261
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "STRING",
+          "links": [
+            14
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "zhu733756/Comfyui-File-Converter",
+        "ver": "a9fd542e2cec022d36fcae4862027895b5a3340c",
+        "Node name for S&R": "FileConverter.LineConverter"
+      },
+      "widgets_values": [
+        "大主宰，林动\n斗破苍穹，小薰儿\n斗破苍穹，消炎",
         "string",
-        ""
+        "merge",
+        "",
+        "",
+        "，",
+        "string",
+        "",
+        [
+          false,
+          true
+        ]
       ]
     },
     {
-      "id": 4,
-      "type": "FileConverter.FilePreview",
-      "pos": [400, 100],
-      "inputs": [
-        { "name": "input_file", "type": "STRING", "link": null }
+      "id": 21,
+      "type": "ShowText|pysssss",
+      "pos": [
+        2374.049072265625,
+        412.162353515625
       ],
-      "outputs": [],
+      "size": [
+        210,
+        166.58892822265625
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 14
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "shape": 6,
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-custom-scripts",
+        "ver": "1.2.5",
+        "Node name for S&R": "ShowText|pysssss"
+      },
       "widgets_values": [
-        "deep_merge_output.json",
-        10,
-        "file",
-        "deep_merge_preview.txt"
+        "大主宰,林动\n斗破苍穹,消炎,小薰儿"
       ]
     },
     {
-      "id": 5,
-      "type": "FileConverter.FilePreview",
-      "pos": [400, 200],
-      "inputs": [
-        { "name": "input_file", "type": "STRING", "link": null }
+      "id": 24,
+      "type": "ShowText|pysssss",
+      "pos": [
+        2410.55712890625,
+        824.4608154296875
       ],
-      "outputs": [],
+      "size": [
+        210,
+        166.58892822265625
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 15
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "shape": 6,
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-custom-scripts",
+        "ver": "1.2.5",
+        "Node name for S&R": "ShowText|pysssss"
+      },
       "widgets_values": [
-        "a_first_output.json",
-        10,
-        "file",
-        "a_first_preview.txt"
+        "大主宰，天蚕土豆\n斗破苍穹，小薰儿\n斗破苍穹，消炎"
       ]
     },
     {
-      "id": 6,
-      "type": "FileConverter.FilePreview",
-      "pos": [400, 300],
-      "inputs": [
-        { "name": "input_file", "type": "STRING", "link": null }
+      "id": 23,
+      "type": "FileConverter.FileDictConverter",
+      "pos": [
+        1768.79296875,
+        746.3795776367188
       ],
-      "outputs": [],
+      "size": [
+        488.7773742675781,
+        294.1253967285156
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "STRING",
+          "links": [
+            15
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "zhu733756/Comfyui-File-Converter",
+        "ver": "68161e020332bbe1a98ae135d560b81540a51157",
+        "Node name for S&R": "FileConverter.FileDictConverter"
+      },
       "widgets_values": [
-        "b_first_output.json",
-        10,
-        "file",
-        "b_first_preview.txt"
+        "大主宰，林动\n斗破苍穹，小薰儿\n斗破苍穹，消炎",
+        "{\"林动\":\"天蚕土豆\"}",
+        "string",
+        "",
+        [
+          false,
+          true
+        ],
+        [
+          false,
+          true
+        ]
       ]
     }
   ],
   "links": [
-    { "from_node": 1, "from_field": "output", "to_node": 4, "to_field": "input_file" },
-    { "from_node": 2, "from_field": "output", "to_node": 5, "to_field": "input_file" },
-    { "from_node": 3, "from_field": "output", "to_node": 6, "to_field": "input_file" }
-  ]
+    [
+      10,
+      1,
+      0,
+      4,
+      0,
+      "STRING"
+    ],
+    [
+      14,
+      20,
+      0,
+      21,
+      0,
+      "STRING"
+    ],
+    [
+      15,
+      23,
+      0,
+      24,
+      0,
+      "STRING"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.9349230011600773,
+      "offset": [
+        -1283.1911492625443,
+        184.17835424737143
+      ]
+    },
+    "frontendVersion": "1.23.4"
+  },
+  "version": 0.4
 }

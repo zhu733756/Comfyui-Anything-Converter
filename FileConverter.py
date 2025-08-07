@@ -230,25 +230,85 @@ class FileDictConverter:
             return (output_file,)
         else:
             return (input_content,)
+        
+class JsonParser:
+    """
+    从任意文本中提取最外层的 {} 或 [] 合法 JSON 片段；
+    若找不到则输出 {"text": <原文本>}
+    """
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "text": ("STRING", {"multiline": True, "default": ""}),
+                "input_mode": (["file", "string"], {"default": "string"}),
+            },
+            "optional": {
+                "output_mode": (["file", "string"], {"default": "string"}),
+                "output_path": ("STRING", {"default": ""}),
+            }
+        }
+
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("json_string",)
+    FUNCTION = "parse"
+    CATEGORY = "FileConverter"
+
+    # ---------- 主函数 ----------
+    def parse(self, text, input_mode, output_mode="string", output_path=""):
+        # 1. 读取内容
+        if input_mode == "file" and os.path.isfile(text.strip()):
+            with open(text.strip(), "r", encoding="utf-8") as f:
+                raw = f.read()
+        else:
+            raw = text
+
+        # 2. 正则找最外层 {} 或 []
+        match = re.search(r"(?s)(?:\{.*?\}|\[.*?\])", raw.strip())
+        if match:
+            try:
+                parsed = json.loads(match.group())
+                out_str = json.dumps(parsed, ensure_ascii=False, indent=2)
+            except json.JSONDecodeError:
+                out_str = json.dumps({"text": raw}, ensure_ascii=False, indent=2)
+        else:
+            out_str = json.dumps({"text": raw}, ensure_ascii=False, indent=2)
+
+        # 3. 输出方式
+        if output_mode == "file":
+            if not output_path.strip():
+                fd, output_path = tempfile.mkstemp(suffix=".json", text=True)
+                os.close(fd)
+            else:
+                Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+            with open(output_path, "w", encoding="utf-8") as f:
+                f.write(out_str)
+            return (output_path,)
+        else:
+            return (out_str,)
 
 
-# 示例用法
+def run_all_tests():
+    # 1. LineConverter.merge
+    lc = LineConverter()
+    src = "大主宰，林动\n斗破苍穹，小薰儿\n斗破苍穹，消炎"
+    result = lc.convert(src, "string", "merge", "", "", "[,|，]", "string")[0]
+    assert "大主宰,林动" in result and "斗破苍穹,小薰儿,消炎" in result or "斗破苍穹,消炎,小薰儿" in result, f"LineConverter merge test failed: {result}"
+
+    # 2. FileDictConverter
+    fdc = FileDictConverter()
+    txt = "Hello, world! This is a test."
+    repl = {"world": "Earth", "test": "example"}
+    out = fdc.convert(txt, repl, "string")[0]
+    assert out == "Hello, Earth! This is a example.", f"FileDictConverter test failed: {out}"
+
+    # 3. JsonParser
+    jp = JsonParser()
+    assert json.loads(jp.parse('前缀{"name":"Alice"}后缀', "string")[0]) == {"name": "Alice"}
+    assert json.loads(jp.parse("没有json", "string")[0]) == {"text": "没有json"}
+
+    print("✅ 所有测试通过！")
+
 if __name__ == "__main__":
-    converter = LineConverter()
-    input_text = '''大主宰，林动
-斗破苍穹，小薰儿
-斗破苍穹，消炎'''
-    result = converter.convert(input_text, "string", "merge", "", "", "[,|，]", "string")
-    print(result)
-    result = converter.convert(input_text, "string", "merge", "", ",", "，", "string")
-    print(result)
-    
-    converter = FileDictConverter()
-    input_text = "Hello, world! This is a test."
-    replace_dict = {"world": "Earth", "test": "example"}
-    output = converter.convert(input_text, replace_dict, "string")
-    print(output)
-    
-    replace_dict_str = '{"world": "Earth", "test": "example"}'
-    output = converter.convert(input_text,  replace_dict_str, "string")
-    print(output)
+    run_all_tests()

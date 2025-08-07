@@ -8,6 +8,7 @@
 
 - **Json Combiner**：合并两个 JSON 文件或字符串。
 - **Line Converter**：按行正则替换或字符串处理文本。
+- **File Dict Converter**：替换文件中的存在于dict中的key为对应的value。
 
 ### 安装
 

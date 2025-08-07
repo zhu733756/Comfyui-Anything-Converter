@@ -8,6 +8,7 @@ ComfyUI-File-Converter includes two main nodes:
 
 - Json Combiner: Merges two JSON files or strings.
 - Line Converter: Performs regex replacement or string processing on text lines.
+- File Dict Converter: Replaces keys in a file that exist in a dict with their corresponding values.
 
 ### Installation
 

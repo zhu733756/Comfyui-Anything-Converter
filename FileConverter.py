@@ -171,9 +171,7 @@ class FileDictConverter:
         return {
             "required": {
                 "input": ("STRING", {"multiline": True, "default": ""}),
-                "input_mode": (["file", "string"], {"default": "string"}),
                 "dict_input": ("STRING", {"multiline": True, "default": ""}),
-                "dict_mode": (["file", "string"], {"default": "string"}),
             },
             "optional": {
                 "output_mode": (["file", "string"], {"default": "string"}),
@@ -186,10 +184,10 @@ class FileDictConverter:
     FUNCTION = "convert"
     CATEGORY = "FileConverter"
 
-    def convert(self, input, input_mode, dict_input, output_mode="string", output_file=""):
-        def _load_content(content, mode):
+    def convert(self, input, dict_input, output_mode="string", output_file=""):
+        def _load_content(content):
             """加载输入内容"""
-            if mode == "file" and os.path.isfile(content.strip()):
+            if  os.path.isfile(content.strip()):
                 with open(content.strip(), "r", encoding="utf-8") as f:
                     return f.read()
             else:
@@ -208,7 +206,7 @@ class FileDictConverter:
                     return json.loads(d)
 
         # 加载输入内容
-        input_content = _load_content(input, input_mode)
+        input_content = _load_content(input)
         # 加载替换字典
         replace_dict = _load_dict(dict_input)
 
@@ -241,13 +239,12 @@ if __name__ == "__main__":
     result = converter.convert(input_text, "string", "merge", "", ",", "，", "string")
     print(result)
     
-    
     converter = FileDictConverter()
     input_text = "Hello, world! This is a test."
     replace_dict = {"world": "Earth", "test": "example"}
-    output = converter.convert(input_text, "string", replace_dict, "string")
+    output = converter.convert(input_text, replace_dict, "string")
     print(output)
     
     replace_dict_str = '{"world": "Earth", "test": "example"}'
-    output = converter.convert(input_text, "string", replace_dict_str, "string")
+    output = converter.convert(input_text,  replace_dict_str, "string")
     print(output)

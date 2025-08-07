@@ -186,7 +186,7 @@ class FileDictConverter:
     FUNCTION = "convert"
     CATEGORY = "FileConverter"
 
-    def convert(self, input, input_mode, dict_input, dict_mode, output_mode="string", output_file=""):
+    def convert(self, input, input_mode, dict_input, output_mode="string", output_file=""):
         def _load_content(content, mode):
             """加载输入内容"""
             if mode == "file" and os.path.isfile(content.strip()):
@@ -195,18 +195,22 @@ class FileDictConverter:
             else:
                 return content
 
-        def _load_dict(d, mode):
+        def _load_dict(d):
             """加载替换字典"""
-            if mode == "file" and os.path.isfile(d.strip()):
-                with open(d.strip(), "r", encoding="utf-8") as f:
-                    return json.load(f)
-            else:
-                return json.loads(d)
+            if isinstance(d, dict):
+                return d
+            
+            if isinstance(d, str):
+                if os.path.isfile(d.strip()):
+                    with open(d.strip(), "r", encoding="utf-8") as f:
+                        return json.load(f)
+                else:
+                    return json.loads(d)
 
         # 加载输入内容
         input_content = _load_content(input, input_mode)
         # 加载替换字典
-        replace_dict = _load_dict(dict_input, dict_mode)
+        replace_dict = _load_dict(dict_input)
 
         # 替换逻辑
         for key, value in replace_dict.items():
@@ -240,6 +244,10 @@ if __name__ == "__main__":
     
     converter = FileDictConverter()
     input_text = "Hello, world! This is a test."
-    replace_dict = '{"world": "Earth", "test": "example"}'
+    replace_dict = {"world": "Earth", "test": "example"}
     output = converter.convert(input_text, "string", replace_dict, "string")
+    print(output)
+    
+    replace_dict_str = '{"world": "Earth", "test": "example"}'
+    output = converter.convert(input_text, "string", replace_dict_str, "string")
     print(output)

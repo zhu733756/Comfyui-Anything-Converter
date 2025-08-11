@@ -361,7 +361,7 @@ class JsonPromptProcessor:
         }
 
     RETURN_TYPES = ("STRING", "STRING", "INT")
-    RETURN_NAMES = ("updated_json", "status", "current_index")
+    RETURN_NAMES = ("prompt", "status", "current_index")
     FUNCTION = "process_prompts"
     CATEGORY = "JsonPromptProcessor"
 
@@ -400,15 +400,14 @@ class JsonPromptProcessor:
                 prompt = ""
                 logger.info("No more prompts. Returning empty string.")
 
-            updated_json = json.dumps(self.state["prompts"], indent=4)
-            self.save_state()
-
             if output_file.strip() and output_file != "Enter the path to save the output JSON file here":
+                Path(output_file).parent.mkdir(parents=True, exist_ok=True)
                 with open(output_file, 'w') as f:
-                    f.write(updated_json)
-
+                    json.dump(f, self.state["prompts"])
+                    
+            self.save_state()
             status = f"Processed {current_index + 1}/{len(self.state['prompts'])} | File: {os.path.basename(json_file)}"
-            return (updated_json, status, current_index)
+            return (prompt, status, current_index)
         except Exception as e:
             logger.error(f"Error in process_prompts: {str(e)}")
             return ("", f"Error: {str(e)}", -1)

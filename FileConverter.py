@@ -3,6 +3,9 @@ import re
 import json
 import tempfile
 from pathlib import Path
+import logging
+
+logger = logging.getLogger(__name__)
 
 class JsonCombiner:
     """
@@ -339,6 +342,112 @@ class FileSplitter:
             f.writelines(part2)
 
         return (output_file_1, output_file_2)
+    
+
+class JsonPromptProcessor:
+    def __init__(self):
+        self.state_file = os.path.join(os.path.dirname(__file__), "json_prompt_processor_state.json")
+        self.state = self.load_state()
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "json_file": ("STRING", {"multiline": False, "default": "Enter the path to your JSON file here"}),
+                "output_file": ("STRING", {"multiline": False, "default": "Enter the path to save the output JSON file here"}),
+                "image_output_dir": ("STRING", {"multiline": False, "default": "Enter the directory to save generated images here"}),
+                "start_index": ("INT", {"default": 0, "min": 0, "max": 10000})
+            }
+        }
+
+    RETURN_TYPES = ("STRING", "STRING", "INT")
+    RETURN_NAMES = ("updated_json", "status", "current_index")
+    FUNCTION = "process_prompts"
+    CATEGORY = "JsonPromptProcessor"
+
+    def process_prompts(self, json_file, output_file, image_output_dir, start_index):
+        try:
+            if not json_file.strip() or json_file == "Enter the path to your JSON file here":
+                return ("", "Error: Please provide a valid JSON file path", -1)
+
+            if not os.path.exists(json_file):
+                return ("", f"Error: JSON file not found: {json_file}", -1)
+
+            if not os.path.exists(image_output_dir):
+                os.makedirs(image_output_dir)
+
+            file_changed = self.state.get("last_file") != json_file
+            index_changed = self.state.get("last_start_index") != start_index
+
+            if file_changed:
+                self.load_prompts(json_file)
+                self.state["last_file"] = json_file
+                self.state["current_index"] = start_index
+            elif index_changed:
+                self.state["current_index"] = start_index
+            else:
+                self.state["current_index"] = (self.state.get("current_index", 0) + 1) % len(self.state["prompts"])
+
+            self.state["last_start_index"] = start_index
+            current_index = self.state["current_index"]
+
+            if current_index < len(self.state["prompts"]):
+                key, prompt = list(self.state["prompts"].items())[current_index]
+                # Simulate image generation and get the image path
+                image_path = self.generate_image(prompt, image_output_dir, key)
+                self.state["prompts"][key] = image_path
+            else:
+                prompt = ""
+                logger.info("No more prompts. Returning empty string.")
+
+            updated_json = json.dumps(self.state["prompts"], indent=4)
+            self.save_state()
+
+            if output_file.strip() and output_file != "Enter the path to save the output JSON file here":
+                with open(output_file, 'w') as f:
+                    f.write(updated_json)
+
+            status = f"Processed {current_index + 1}/{len(self.state['prompts'])} | File: {os.path.basename(json_file)}"
+            return (updated_json, status, current_index)
+        except Exception as e:
+            logger.error(f"Error in process_prompts: {str(e)}")
+            return ("", f"Error: {str(e)}", -1)
+
+    def load_prompts(self, json_file):
+        try:
+            with open(json_file, 'r', encoding='utf-8') as file:
+                self.state["prompts"] = json.load(file)
+            logger.info(f"Loaded {len(self.state['prompts'])} prompts from {json_file}")
+        except Exception as e:
+            logger.error(f"Error loading prompts: {str(e)}")
+            raise
+
+    def generate_image(self, prompt, image_output_dir, key):
+        # Placeholder for image generation logic
+        # Replace this with your actual image generation code
+        image_path = os.path.join(image_output_dir, f"{key}.png")
+        logger.info(f"Generated image for prompt: {prompt} at {image_path}")
+        return image_path
+
+    def load_state(self):
+        try:
+            if os.path.exists(self.state_file):
+                with open(self.state_file, 'r') as f:
+                    return json.load(f)
+        except Exception as e:
+            logger.error(f"Error loading state file: {str(e)}")
+        return {"prompts": {}, "current_index": 0, "last_file": "", "last_start_index": 0}
+
+    def save_state(self):
+        try:
+            with open(self.state_file, 'w') as f:
+                json.dump(self.state, f)
+        except Exception as e:
+            logger.error(f"Error saving state file: {str(e)}")
+
+    @classmethod
+    def IS_CHANGED(cls, **kwargs):
+        return float("nan")
 
 
 def run_all_tests():
@@ -360,7 +469,7 @@ def run_all_tests():
     assert json.loads(jp.parse('前缀{"name":"Alice"}后缀', "string")[0]) == {"name": "Alice"}
     assert json.loads(jp.parse("没有json", "string")[0]) == {"text": "没有json"}
     
-     # 4. FileSplitter
+    # 4. FileSplitter
     fs = FileSplitter()
     src_file = "test_split.txt"
     with open(src_file, "w", encoding="utf-8") as f:
@@ -375,6 +484,61 @@ def run_all_tests():
     os.remove(src_file)
     os.remove(output_file_1)
     os.remove(output_file_2)
+    
+    # 5. JsonPromptProcessor
+    test_json_content = {
+        "prompt1": "A beautiful sunset over the ocean",
+        "prompt2": "A futuristic cityscape at night",
+        "prompt3": "A serene forest with a gentle stream"
+    }
+    # 创建测试用的 JSON 文件
+    test_json_file = "test_prompts.json"
+    with open(test_json_file, 'w') as f:
+        json.dump(test_json_content, f)
+
+    # 创建测试用的输出目录
+    test_image_output_dir = "test_images"
+    if not os.path.exists(test_image_output_dir):
+        os.makedirs(test_image_output_dir)
+
+    # 创建测试用的输出 JSON 文件
+    test_output_file = "test_output.json"
+    # 初始化 JsonPromptProcessor
+    jpp = JsonPromptProcessor()
+
+    try:
+        # 调用 process_prompts 方法
+        updated_json, status, current_index = jpp.process_prompts(
+            json_file=test_json_file,
+            output_file=test_output_file,
+            image_output_dir=test_image_output_dir,
+            start_index=0
+        )
+
+        # 检查状态信息
+        assert "Processed 1/3" in status, f"Status message incorrect: {status}"
+
+        # 检查返回的 JSON 数据
+        updated_json_data = json.loads(updated_json)
+        assert "prompt1" in updated_json_data, f"Key 'prompt1' not found in updated JSON: {updated_json}"
+        assert updated_json_data["prompt1"].endswith("prompt1.png"), f"Image path for 'prompt1' incorrect: {updated_json_data['prompt1']}"
+
+        # 检查输出文件
+        with open(test_output_file, 'r') as f:
+            output_json_data = json.load(f)
+        assert output_json_data == updated_json_data, f"Output JSON file does not match updated JSON: {output_json_data}"
+
+        logger.info("Test passed successfully!")
+    except AssertionError as e:
+        logger.error(f"Test failed: {str(e)}")
+    except Exception as e:
+        logger.error(f"Unexpected error: {str(e)}")
+
+
+    # 清理测试文件
+    os.remove(test_json_file)
+    os.remove(test_output_file)
+    os.rmdir(test_image_output_dir)
 
 
     print("✅ 所有测试通过！")

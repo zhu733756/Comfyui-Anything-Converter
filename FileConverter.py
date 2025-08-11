@@ -287,6 +287,58 @@ class JsonParser:
             return (output_path,)
         else:
             return (out_str,)
+        
+        
+class FileSplitter:
+    """
+    根据给定的正则匹配，按匹配的内容前一行或者后一行换行符分割文件，分割成两个文件，并支持文件的名称自定义
+    """
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "input_file": ("STRING", {"default": ""}),
+                "pattern": ("STRING", {"default": ""}),
+                "split_mode": (["before", "after"], {"default": "after"}),
+                "output_file_1": ("STRING", {"default": ""}),
+                "output_file_2": ("STRING", {"default": ""}),
+            }
+        }
+
+    RETURN_TYPES = ("STRING", "STRING")
+    RETURN_NAMES = ("output_file_1", "output_file_2")
+    FUNCTION = "split"
+    CATEGORY = "FileConverter"
+
+    def split(self, input, pattern, split_mode, output_file_1, output_file_2):
+        if os.path.isfile(input):
+          with open(input, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+        else:
+            lines = str(input)
+
+        split_index = None
+        for i, line in enumerate(lines):
+            if re.search(pattern, line):
+                split_index = i + (1 if split_mode == "after" else 0)
+                break
+
+        if split_index is None:
+            raise ValueError(f"Pattern not found in file: {pattern}")
+
+        part1 = lines[:split_index]
+        part2 = lines[split_index:]
+
+        output_dir = Path(output_file_1).parent
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        with open(output_file_1, "w", encoding="utf-8") as f:
+            f.writelines(part1)
+
+        with open(output_file_2, "w", encoding="utf-8") as f:
+            f.writelines(part2)
+
+        return (output_file_1, output_file_2)
 
 
 def run_all_tests():
@@ -307,6 +359,23 @@ def run_all_tests():
     jp = JsonParser()
     assert json.loads(jp.parse('前缀{"name":"Alice"}后缀', "string")[0]) == {"name": "Alice"}
     assert json.loads(jp.parse("没有json", "string")[0]) == {"text": "没有json"}
+    
+     # 4. FileSplitter
+    fs = FileSplitter()
+    src_file = "test_split.txt"
+    with open(src_file, "w", encoding="utf-8") as f:
+        f.write("line1\nline2\nline3\nline4\n")
+    output_file_1, output_file_2 = fs.split(src_file, "line3", "after", "output1.txt", "output2.txt")
+    with open(output_file_1, "r", encoding="utf-8") as f:
+        content = str(f.read())
+        assert  content == "line1\nline2\nline3\n", f"got {content}, expect line1\nline2\nline3\n"
+    with open(output_file_2, "r", encoding="utf-8") as f:
+        content = f.read()
+        assert content == "line4\n", f"got {content}, expect line4\n"
+    os.remove(src_file)
+    os.remove(output_file_1)
+    os.remove(output_file_2)
+
 
     print("✅ 所有测试通过！")
 

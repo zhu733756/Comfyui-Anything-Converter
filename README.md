@@ -8,7 +8,9 @@
 
 - **Json Combiner**：合并两个 JSON 文件或字符串。
 - **Line Converter**：按行正则替换或字符串处理文本。
-- **File Dict Converter**：替换文件中的存在于dict中的key为对应的value。
+- **File Dict Converter**：替换文件中的存在于 dict 中的 key 为对应的 value。
+- **Json Parser**：解析任何 json 字符串为 json 对象。
+- **File Splitter**：根据给定的正则匹配，按匹配的内容前一行或者后一行换行符分割文件，分割成两个文件。
 
 ### 安装
 
@@ -21,7 +23,7 @@
 - 在 ComfyUI 的节点列表中找到 `Json Combiner` 和 `Line Converter` 节点，并将它们拖放到画布上。
 - 配置节点参数并运行工作流，以确保一切正常工作。
 - 查看 workflow.json:
-![workflow.json](workflow.png)
+  ![workflow.json](workflow.png)
 
 ### 贡献
 

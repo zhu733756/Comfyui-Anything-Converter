@@ -9,6 +9,8 @@ ComfyUI-File-Converter includes two main nodes:
 - Json Combiner: Merges two JSON files or strings.
 - Line Converter: Performs regex replacement or string processing on text lines.
 - File Dict Converter: Replaces keys in a file that exist in a dict with their corresponding values.
+- Json Parser：Covert any str to json object。
+- File Splitter：Split file to two files by matching any str content。
 
 ### Installation
 
@@ -21,4 +23,4 @@ ComfyUI-File-Converter includes two main nodes:
 - Locate the Json Combiner and Line Converter nodes in the ComfyUI node list and drag them onto the canvas.
 - Configure the node parameters and run the workflow to ensure everything works as expected.
 - Check the workflow.json file:
-![workflow.json](workflow.png)
+  ![workflow.json](workflow.png)

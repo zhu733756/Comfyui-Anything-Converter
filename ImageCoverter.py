@@ -16,8 +16,8 @@ class SaveImage:
             "required": {
                 "images": ("IMAGE", {"tooltip": "The images to save."}),
                 "paths": ("STRING", {"multiline": True, "tooltip": "One absolute path per line, same count as images. Empty → use default output dir."}),
+                "prompts": ("STRING", {"tooltip": "comfyui-anything-converter json prompt processor prompts"}),
                 "filename_prefix": ("STRING", {"default": "ComfyUI", "tooltip": "File name prefix, supports %date% etc."}),
-                "body_text": ("STRING", {"tooltip": "comfyroll CR prompt list body_text"}),
             },
             "optional": {
                 "caption_file_extension": ("STRING", {"default": ".txt", "tooltip": "Extension for caption file."}),
@@ -33,7 +33,7 @@ class SaveImage:
     CATEGORY = "SaveImage"
     DESCRIPTION = "Save each image to its own custom path. Empty path falls back to default output folder."
 
-    def save_images(self, images, paths, filename_prefix="ComfyUI", body_text="",
+    def save_images(self, images, paths, prompts="", filename_prefix="ComfyUI", 
                     prompt=None, extra_pnginfo=None,
                     caption=None, caption_file_extension=".txt"):
 
@@ -50,7 +50,7 @@ class SaveImage:
             while len(caption_list) < len(images):
                 caption_list.append(None)
 
-        lines = [t.strip() for t in body_text.split("\n") if t.strip()]
+        lines = [t.strip() for t in prompts.split("\n") if t.strip()]
         results = {}
         for idx, (image, custom_path, cap) in enumerate(zip(images, path_list, caption_list)):
 
@@ -91,7 +91,10 @@ class SaveImage:
                 with open(txt_path, "w", encoding="utf-8") as f:
                     f.write(cap)
 
-            results[lines[idx]] = png_path
+            if lines and idx < len(lines):
+              results[lines[idx]] = png_path
+            else:
+              results[idx] = png_path
             counter += 1  # 计数器每图自增
 
         # 返回 json 字符串，方便下游节点继续用

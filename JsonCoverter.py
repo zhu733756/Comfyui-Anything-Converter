@@ -2,7 +2,10 @@ import os
 import re
 import json
 import tempfile
+import logging
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 class JsonCombiner:
     """
@@ -158,6 +161,8 @@ class JsonPromptProcessor:
     CATEGORY = "JsonPromptProcessor"
 
     def process_prompts(self, metadata, image_output_dir):
+        logger.debug(f"get metadata {metadata}")
+        
         if os.path.isfile(metadata):
             with open(metadata, encoding="utf-8") as f:
                 prompts = json.load(f)  # {"k1":"prompt1", ...}
@@ -165,6 +170,7 @@ class JsonPromptProcessor:
             prompts = json.loads(metadata)
         else:
             raise "not str or file like"
+        
         
         Path(image_output_dir).mkdir(parents=True, exist_ok=True)
 

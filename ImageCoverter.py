@@ -2,8 +2,11 @@ import os
 import json
 import numpy as np
 from PIL import Image, PngImagePlugin
+import logging
 import folder_paths
 from comfy.cli_args import args
+
+logger = logging.getLogger(__name__)
 
 class SaveImage:
     def __init__(self):
@@ -16,12 +19,11 @@ class SaveImage:
             "required": {
                 "images": ("IMAGE", {"tooltip": "The images to save."}),
                 "paths": ("STRING", {"multiline": True, "tooltip": "One absolute path per line, same count as images. Empty → use default output dir."}),
-                "prompts": ("STRING", {"tooltip": "comfyui-anything-converter json prompt processor prompts"}),
                 "filename_prefix": ("STRING", {"default": "ComfyUI", "tooltip": "File name prefix, supports %date% etc."}),
             },
             "optional": {
-                "caption_file_extension": ("STRING", {"default": ".txt", "tooltip": "Extension for caption file."}),
                 "caption": ("STRING", {"forceInput": True, "tooltip": "One caption per line, same count as images."}),
+                "labels": ("STRING", {"forceInput": True, "tooltip": "json str mapping for caption"}),
             },
             "hidden": {"prompt": "PROMPT", "extra_pnginfo": "EXTRA_PNGINFO"},
         }
@@ -33,27 +35,29 @@ class SaveImage:
     CATEGORY = "SaveImage"
     DESCRIPTION = "Save each image to its own custom path. Empty path falls back to default output folder."
 
-    def save_images(self, images, paths, prompts="", filename_prefix="ComfyUI", 
-                    prompt=None, extra_pnginfo=None,
-                    caption=None, caption_file_extension=".txt"):
-
-        # 把 paths 拆成列表，不够长就补空字符串
+    def save_images(self, images, paths, filename_prefix="ComfyUI", 
+                    prompt=None, extra_pnginfo=None, caption=None, labels=None):
         path_list = [p.strip() for p in str(paths).splitlines() if p.strip() != ""]
         while len(path_list) < len(images):
             path_list.append("")  # 用默认
 
-        # 把 caption 拆成列表，缺省补 None
         if caption is None:
             caption_list = [None] * len(images)
         else:
             caption_list = [c.strip() for c in str(caption).splitlines()]
             while len(caption_list) < len(images):
                 caption_list.append(None)
-
-        lines = [t.strip() for t in prompts.split("\n") if t.strip()]
+                
+        metadata = {}
+        if labels is not None:
+            try:
+                loaded = json.loads(labels)
+                metadata = {v:k for k,v in loaded.Items()}
+            except Exception as e:
+                logger.warning(f"json loads failed {e.args}")
+         
         results = {}
         for idx, (image, custom_path, cap) in enumerate(zip(images, path_list, caption_list)):
-
             # 1. 决定输出目录
             if custom_path and os.path.isabs(custom_path):
                 out_dir = custom_path
@@ -83,18 +87,17 @@ class SaveImage:
 
             png_name = f"{base_file}.png"
             png_path = os.path.join(full_out, png_name)
+            
+            logger.debug(f"image{idx} saved to {png_path}")
             img.save(png_path, pnginfo=metadata, compress_level=self.compress_level)
 
-            # 5. 保存 caption
             if cap is not None:
-                txt_path = os.path.join(full_out, f"{base_file}{caption_file_extension}")
-                with open(txt_path, "w", encoding="utf-8") as f:
-                    f.write(cap)
-
-            if lines and idx < len(lines):
-              results[lines[idx]] = png_path
+                if cap in metadata:
+                    results[metadata[cap]] = png_path
+                else:
+                    results[cap] = png_path
             else:
-              results[idx] = png_path
+                results[idx] = png_path
             counter += 1  # 计数器每图自增
 
         # 返回 json 字符串，方便下游节点继续用

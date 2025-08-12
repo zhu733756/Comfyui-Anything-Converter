@@ -16,7 +16,7 @@ class JsonCombiner:
                 "json_b": ("STRING", {"multiline": True, "default": ""}),
                 "json_a_mode": (["file", "string"], {"default": "string"}),
                 "json_b_mode": (["file", "string"], {"default": "string"}),
-                "merge_strategy": (["deep_merge", "a_first", "b_first"], {"default": "deep_merge"}),
+                "merge_strategy": (["deep_merge", "a_first", "b_first", "value_ab"], {"default": "deep_merge"}),
             },
             "optional": {
                 "indent": ("INT", {"default": 2}),
@@ -49,8 +49,13 @@ class JsonCombiner:
             merged = self._deep_merge(a, b)
         elif merge_strategy == "b_first":
             merged = {**a, **b}
-        else:  # a_first
+        elif merge_strategy == "a_first":
             merged = {**b, **a}
+        elif merge_strategy == "value_ab":
+            merged = {}
+            for k, v in a.items():
+                if v in b.values():
+                    merged[k] = v
 
         if indent <= 0 or indent is None:
             indent = None

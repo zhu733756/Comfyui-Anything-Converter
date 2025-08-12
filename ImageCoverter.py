@@ -27,7 +27,7 @@ class SaveImage:
         }
 
     RETURN_TYPES = ("STRING",)
-    RETURN_NAMES = ("saved_files_json",)
+    RETURN_NAMES = ("metadata",)
     FUNCTION = "save_images"
     OUTPUT_NODE = True
     CATEGORY = "SaveImage"
@@ -127,13 +127,13 @@ def test_save_image():
 
     # 4. 调用节点
     node = SaveImage()
-    saved_files_json, = node.save_images(
+    metadata = node.save_images(
         images=images,
         paths=paths,
         filename_prefix="test",
         caption=captions
     )
-    saved_files = json.loads(saved_files_json)
+    saved_files = json.loads(metadata)
 
     # 5. 断言
     assert len(saved_files) == 3, f"expect 3 files, got {len(saved_files)}"

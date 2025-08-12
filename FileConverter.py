@@ -374,15 +374,15 @@ class JsonPromptProcessor:
         Path(image_output_dir).mkdir(parents=True, exist_ok=True)
 
         pending = {}
-        prompts = []
+        prompt_contents = []
         for key, prompt in prompts.items():
             img_path = Path(image_output_dir) / f"{key}.png"
             pending[key] = str(img_path)
-            prompts.append(prompt)
+            prompt_contents.append(prompt)
 
         # 4) 元数据 json
         meta_json = json.dumps(pending, ensure_ascii=False, indent=2)
-        return "\n".join(prompts), meta_json
+        return "\n".join(prompt_contents), meta_json
 
 
 def run_all_tests():

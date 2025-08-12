@@ -8,7 +8,7 @@ NODE_CLASS_MAPPINGS = {
     "FileConverter.FileDictConverter": FileDictConverter,
     "FileConverter.JsonParser": JsonParser,
     "FileConverter.FileSplitter": FileSplitter,
-    "FileConverter.JsonPromptProcessorNode": JsonPromptProcessor,
+    "FileConverter.JsonPromptProcessor": JsonPromptProcessor,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -17,7 +17,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FileConverter.FileDictConverter": "File Dict Converter",
     "FileConverter.JsonParser": "Json Converter",
     "FileConverter.FileSpliter": "File Spliter",
-    "FileConverter.JsonPromptProcessorNode": "Json Prompt Processor",
+    "FileConverter.JsonPromptProcessor": "Json Prompt Processor",
 }
 
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS"]

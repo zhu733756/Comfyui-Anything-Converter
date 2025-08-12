@@ -6,6 +6,9 @@ from pathlib import Path
 import logging
 import asyncio
 from comfy.model_management import InterruptProcessingException, interrupt_processing 
+import torch
+import numpy as np
+from PIL import Image
 
 
 logger = logging.getLogger(__name__)
@@ -346,82 +349,76 @@ class FileSplitter:
 
         return (output_file_1, output_file_2)
 
-
 class JsonPromptProcessor:
-
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "json_file": ("STRING", {"multiline": False, "default": "Enter the path to your JSON file here"}),
-                "output_file": ("STRING", {"multiline": False, "default": "Enter the path to save the output JSON file here"}),
-                "image_output_dir": ("STRING", {"multiline": False, "default": "Enter the directory to save generated images here"})
+                "json_file": ("STRING", {"multiline": False}),
+                "image_output_dir": ("STRING", {"multiline": False})
             }
         }
 
-    RETURN_TYPES = ("STRING", "STRING",)
-    RETURN_NAMES = ("prompt", "status",)
+    RETURN_TYPES = ("IMAGE", "STRING")   # 第二路输出：json 字符串，包含 key->路径 的映射
+    RETURN_NAMES = ("images", "meta_json")
     FUNCTION = "process_prompts"
     CATEGORY = "JsonPromptProcessor"
 
-    async def process_prompts(self, json_file, output_file, image_output_dir):
+    # ---------- 同步入口 ----------
+    def process_prompts(self, json_file, image_output_dir):
         try:
-            if not json_file.strip() or json_file == "Enter the path to your JSON file here":
-                return ("", "Error: Please provide a valid JSON file path")
+            return asyncio.run(self._async_main(json_file, image_output_dir))
+        except InterruptProcessingException:
+            logger.warning("Workflow cancelled.")
+            # 返回空张量 + 空 json
+            return (torch.empty(0, 3, 64, 64), "{}")
 
-            if not os.path.exists(json_file):
-                return ("", f"Error: JSON file not found: {json_file}")
+    # ---------- 异步主逻辑 ----------
+    async def _async_main(self, json_file, image_output_dir):
+        if not os.path.isfile(json_file):
+            raise FileNotFoundError(json_file)
 
-            if not os.path.exists(image_output_dir):
-                os.makedirs(image_output_dir)
+        with open(json_file, encoding="utf-8") as f:
+            prompts = json.load(f)  # {"k1":"prompt1", ...}
+        
+        Path(image_output_dir).mkdir(parents=True, exist_ok=True)
 
-            # Load prompts from JSON file
-            with open(json_file, 'r', encoding='utf-8') as file:
-                prompts = json.load(file)
+        # 1) 一次性提交所有任务，拿到【预期文件路径】（可替换为真实 API）
+        pending = {}
+        for key, prompt in prompts.items():
+            img_path = Path(image_output_dir) / f"{key}.png"
+            pending[key] = str(img_path)
 
-            # Initialize output dictionary
-            output_data = {}
+        # 2) 统一轮询直到全部就绪
+        await self.poll_until_all_ready(list(pending.values()))
 
-            # Save output to the specified file
-            Path(output_file).parent.mkdir(parents=True, exist_ok=True)
-            # Process each prompt
-            for key, prompt in prompts.items():
-                # Simulate image generation and get the image path
-                if interrupt_processing:
-                    raise InterruptProcessingException
-                
-                image_path = await self.generate_image(prompt, image_output_dir, key)
-                output_data[key] = image_path
+        # 3) 组装 tensor batch
+        tensor_batch = []
+        for path_str in pending.values():
+            tensor_batch.append(self.pil2tensor(Image.open(path_str).convert("RGB")))
+        images = torch.cat(tensor_batch, dim=0)  # [B, H, W, C]
 
+        # 4) 元数据 json
+        meta_json = json.dumps(pending, ensure_ascii=False, indent=2)
+        return images, meta_json
 
-            with open(output_file, 'w') as f:
-                json.dump(output_data, f, indent=4)
+    # ---------- 统一轮询 ----------
+    async def poll_until_all_ready(self, paths, interval=5, timeout=240):
+        total = len(paths)
+        for _ in range(timeout // interval):
+            if interrupt_processing:
+                raise InterruptProcessingException
+            
+            ready = sum(os.path.isfile(p) for p in paths)
+            if ready == total:
+                return
+            await asyncio.sleep(interval)
+        raise TimeoutError("Some images did not finish in time")
 
-            status = f"Processed {len(prompts)} prompts. Output saved to {output_file}"
-            return (prompt, status, )
-        except Exception as e:
-            logger.error(f"Error in process_prompts: {str(e)}")
-            return ("no prompt", f"Error: {str(e)}")
-
-    async def generate_image(self, prompt, image_output_dir, key):
-        # Placeholder for image generation logic
-        # Replace this with your actual image generation code
-        image_path = os.path.join(image_output_dir, f"{key}.png")
-        logger.info(f"Generated image for prompt: {prompt} at {image_path}")
-
-        # Simulate asynchronous image generation
-        await asyncio.sleep(5)  # Simulate delay
-
-        # Check if the image is generated
-        if not os.path.exists(image_path):
-            logger.warning(f"Image not generated for prompt: {prompt}")
-            return ""
-
-        return image_path
-
-    @classmethod
-    def IS_CHANGED(cls, **kwargs):
-        return float("nan")
+    # ---------- 工具 ----------
+    def pil2tensor(self, image):
+        arr = np.asarray(image, dtype=np.float32) / 255.0
+        return torch.from_numpy(arr).unsqueeze(0)  # [1, H, W, C]
 
 
 def run_all_tests():

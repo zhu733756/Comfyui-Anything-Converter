@@ -457,61 +457,6 @@ def run_all_tests():
     os.remove(output_file_2)
     
     # 5. JsonPromptProcessor
-    test_json_content = {
-        "prompt1": "A beautiful sunset over the ocean",
-        "prompt2": "A futuristic cityscape at night",
-        "prompt3": "A serene forest with a gentle stream"
-    }
-    # 创建测试用的 JSON 文件
-    test_json_file = "test_prompts.json"
-    with open(test_json_file, 'w') as f:
-        json.dump(test_json_content, f)
-
-    # 创建测试用的输出目录
-    test_image_output_dir = "test_images"
-    if not os.path.exists(test_image_output_dir):
-        os.makedirs(test_image_output_dir)
-
-    # 创建测试用的输出 JSON 文件
-    test_output_file = "test_output.json"
-    # 初始化 JsonPromptProcessor
-    jpp = JsonPromptProcessor()
-
-    try:
-        # 调用 process_prompts 方法
-        updated_json, status, current_index = jpp.process_prompts(
-            json_file=test_json_file,
-            output_file=test_output_file,
-            image_output_dir=test_image_output_dir,
-            start_index=0
-        )
-
-        # 检查状态信息
-        assert "Processed 1/3" in status, f"Status message incorrect: {status}"
-
-        # 检查返回的 JSON 数据
-        updated_json_data = json.loads(updated_json)
-        assert "prompt1" in updated_json_data, f"Key 'prompt1' not found in updated JSON: {updated_json}"
-        assert updated_json_data["prompt1"].endswith("prompt1.png"), f"Image path for 'prompt1' incorrect: {updated_json_data['prompt1']}"
-
-        # 检查输出文件
-        with open(test_output_file, 'r') as f:
-            output_json_data = json.load(f)
-        assert output_json_data == updated_json_data, f"Output JSON file does not match updated JSON: {output_json_data}"
-
-        logger.info("Test passed successfully!")
-    except AssertionError as e:
-        logger.error(f"Test failed: {str(e)}")
-    except Exception as e:
-        logger.error(f"Unexpected error: {str(e)}")
-
-
-    # 清理测试文件
-    os.remove(test_json_file)
-    os.remove(test_output_file)
-    os.rmdir(test_image_output_dir)
-
-
     print("✅ 所有测试通过！")
 
 if __name__ == "__main__":

@@ -48,13 +48,19 @@ class SaveImage:
             while len(caption_list) < len(images):
                 caption_list.append(None)
                 
-        metadata = {}
+        label_metadata = {}
         if labels is not None:
             try:
-                loaded = json.loads(labels)
-                metadata = {v:k for k,v in loaded.Items()}
+                if os.path.isfile(labels):
+                    with open(labels) as lf:
+                        loaded = json.load(lf)
+                else:
+                    loaded = json.loads(labels)
+                
+                logger.info(f"labels loaded, labels: {labels}")   
+                label_metadata = {v:k for k,v in loaded.Items()}
             except Exception as e:
-                logger.warning(f"json loads failed {e.args}")
+                logger.warning(f"labels loaded failed {e.args}, labels: {labels}")
          
         results = {}
         for idx, (image, custom_path, cap) in enumerate(zip(images, path_list, caption_list)):
@@ -92,8 +98,8 @@ class SaveImage:
             img.save(png_path, pnginfo=metadata, compress_level=self.compress_level)
 
             if cap is not None:
-                if cap in metadata:
-                    results[metadata[cap]] = png_path
+                if cap in label_metadata:
+                    results[label_metadata[cap]] = png_path
                 else:
                     results[cap] = png_path
             else:

@@ -359,22 +359,12 @@ class JsonPromptProcessor:
             }
         }
 
-    RETURN_TYPES = ("IMAGE", "STRING")   # 第二路输出：json 字符串，包含 key->路径 的映射
-    RETURN_NAMES = ("images", "meta_json")
+    RETURN_TYPES = ("STRING", "STRING")   # 第二路输出：json 字符串，包含 key->路径 的映射
+    RETURN_NAMES = ("prompts", "meta_json")
     FUNCTION = "process_prompts"
     CATEGORY = "JsonPromptProcessor"
 
-    # ---------- 同步入口 ----------
     def process_prompts(self, json_file, image_output_dir):
-        try:
-            return asyncio.run(self._async_main(json_file, image_output_dir))
-        except InterruptProcessingException:
-            logger.warning("Workflow cancelled.")
-            # 返回空张量 + 空 json
-            return (torch.empty(0, 3, 64, 64), "{}")
-
-    # ---------- 异步主逻辑 ----------
-    async def _async_main(self, json_file, image_output_dir):
         if not os.path.isfile(json_file):
             raise FileNotFoundError(json_file)
 
@@ -383,42 +373,16 @@ class JsonPromptProcessor:
         
         Path(image_output_dir).mkdir(parents=True, exist_ok=True)
 
-        # 1) 一次性提交所有任务，拿到【预期文件路径】（可替换为真实 API）
         pending = {}
+        prompts = []
         for key, prompt in prompts.items():
             img_path = Path(image_output_dir) / f"{key}.png"
             pending[key] = str(img_path)
-
-        # 2) 统一轮询直到全部就绪
-        await self.poll_until_all_ready(list(pending.values()))
-
-        # 3) 组装 tensor batch
-        tensor_batch = []
-        for path_str in pending.values():
-            tensor_batch.append(self.pil2tensor(Image.open(path_str).convert("RGB")))
-        images = torch.cat(tensor_batch, dim=0)  # [B, H, W, C]
+            prompts.append(prompt)
 
         # 4) 元数据 json
         meta_json = json.dumps(pending, ensure_ascii=False, indent=2)
-        return images, meta_json
-
-    # ---------- 统一轮询 ----------
-    async def poll_until_all_ready(self, paths, interval=5, timeout=240):
-        total = len(paths)
-        for _ in range(timeout // interval):
-            if interrupt_processing:
-                raise InterruptProcessingException
-            
-            ready = sum(os.path.isfile(p) for p in paths)
-            if ready == total:
-                return
-            await asyncio.sleep(interval)
-        raise TimeoutError("Some images did not finish in time")
-
-    # ---------- 工具 ----------
-    def pil2tensor(self, image):
-        arr = np.asarray(image, dtype=np.float32) / 255.0
-        return torch.from_numpy(arr).unsqueeze(0)  # [1, H, W, C]
+        return prompts, meta_json
 
 
 def run_all_tests():

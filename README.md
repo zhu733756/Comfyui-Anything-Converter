@@ -1,22 +1,22 @@
 # ComfyUI-Anything-Converter
 
-这是一个为 ComfyUI 设计的自定义节点扩展，提供了 JSON 合并和文本行转换功能。
+这是一个为 ComfyUI 设计的自定义节点扩展，提供了 JSON/文本/图片 等转换功能。
 
 ### 概述
 
 `ComfyUI-Anything-Converter` 包含以下主要节点：
 
-Json:
+JsonConverter:
 - **Json Combiner**：合并两个 JSON 文件或字符串。
 - **Json Parser**：解析任何 json 字符串为 json 对象。
 
-File:
+FileConverter:
 - **Line Converter**：按行正则替换或字符串处理文本。
 - **File Dict Converter**：替换文件中的存在于 dict 中的 key 为对应的 value。
 - **File Splitter**：根据给定的正则匹配，按匹配的内容前一行或者后一行换行符分割文件，分割成两个文件。
 
-Image:
-- **ImageConverter**：参考ComfyUI-KJNodes:Save Image KJ实现，可以获取所有图片的路径
+ImageCoverter:
+- **Save Image**：参考[ComfyUI-KJNodes: Save Image KJ](https://github.com/kijai/ComfyUI-KJNodes)实现，可以获取所有图片的路径
 
 ### 安装
 

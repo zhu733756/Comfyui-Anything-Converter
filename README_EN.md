@@ -6,18 +6,20 @@ This is a custom node extension designed for ComfyUI, providing JSON merging and
 
 ComfyUI-Anything-Converter includes the following core nodes:
 
-Json
-- **Json Combiner**: merges two JSON files or strings.  
+JsonConverter
+
+- **Json Combiner**: merges two JSON files or strings.
 - **Json Parser**: parses any JSON string into a JSON object.
 
-File
-- **Line Converter**: performs per-line regex replacement or string processing.  
-- **File Dict Converter**: replaces every key found in a dictionary with its corresponding value inside a file.  
+FileConverter
+
+- **Line Converter**: performs per-line regex replacement or string processing.
+- **File Dict Converter**: replaces every key found in a dictionary with its corresponding value inside a file.
 - **File Splitter**: splits a file into two files by inserting a newline before or after each regex-matched content.
 
-Image
-- **ImageConverter**: based on ComfyUI-KJNodes: Save Image KJ, retrieves paths of all generated images.
+ImageConverter
 
+- **Save Image**: based on [ComfyUI-KJNodes: Save Image KJ](https://github.com/kijai/ComfyUI-KJNodes), retrieves paths of all generated images.
 
 ### Installation
 

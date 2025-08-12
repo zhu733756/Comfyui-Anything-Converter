@@ -17,6 +17,7 @@ class SaveImage:
                 "images": ("IMAGE", {"tooltip": "The images to save."}),
                 "paths": ("STRING", {"multiline": True, "tooltip": "One absolute path per line, same count as images. Empty → use default output dir."}),
                 "filename_prefix": ("STRING", {"default": "ComfyUI", "tooltip": "File name prefix, supports %date% etc."}),
+                "body_text": ("STRING", {"tooltip": "comfyroll CR prompt list body_text"}),
             },
             "optional": {
                 "caption_file_extension": ("STRING", {"default": ".txt", "tooltip": "Extension for caption file."}),
@@ -29,10 +30,10 @@ class SaveImage:
     RETURN_NAMES = ("saved_files_json",)
     FUNCTION = "save_images"
     OUTPUT_NODE = True
-    CATEGORY = "ImageConverter/save"
+    CATEGORY = "SaveImage"
     DESCRIPTION = "Save each image to its own custom path. Empty path falls back to default output folder."
 
-    def save_images(self, images, paths, filename_prefix="ComfyUI",
+    def save_images(self, images, paths, filename_prefix="ComfyUI", body_text="",
                     prompt=None, extra_pnginfo=None,
                     caption=None, caption_file_extension=".txt"):
 
@@ -49,8 +50,9 @@ class SaveImage:
             while len(caption_list) < len(images):
                 caption_list.append(None)
 
-        results = []
-        for _, (image, custom_path, cap) in enumerate(zip(images, path_list, caption_list)):
+        lines = [t.strip() for t in body_text.split("\n") if t.strip()]
+        results = {}
+        for idx, (image, custom_path, cap) in enumerate(zip(images, path_list, caption_list)):
 
             # 1. 决定输出目录
             if custom_path and os.path.isabs(custom_path):
@@ -89,14 +91,14 @@ class SaveImage:
                 with open(txt_path, "w", encoding="utf-8") as f:
                     f.write(cap)
 
-            results.append(png_path)
+            results[lines[idx]] = png_path
             counter += 1  # 计数器每图自增
 
         # 返回 json 字符串，方便下游节点继续用
         return (json.dumps(results, ensure_ascii=False),)
 
 
-def test_save_image_kj_plus():
+def test_save_image():
     # 1. 准备假数据
     import torch
     import numpy as np
@@ -139,4 +141,4 @@ def test_save_image_kj_plus():
         print("   ", p)
 
 if __name__ == "__main__":
-    test_save_image_kj_plus()
+    test_save_image()

@@ -382,7 +382,7 @@ class JsonPromptProcessor:
 
         # 4) 元数据 json
         meta_json = json.dumps(pending, ensure_ascii=False, indent=2)
-        return prompts, meta_json
+        return "\n".join(prompts), meta_json
 
 
 def run_all_tests():

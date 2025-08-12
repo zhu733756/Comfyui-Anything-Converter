@@ -4,89 +4,10 @@ import json
 import tempfile
 from pathlib import Path
 import logging
-import asyncio
-from comfy.model_management import InterruptProcessingException, interrupt_processing 
-import torch
-import numpy as np
-from PIL import Image
+
 
 
 logger = logging.getLogger(__name__)
-
-class JsonCombiner:
-    """
-    合并两个 JSON（文件或 JSON 字符串），输出为新的 JSON 文件或字符串
-    """
-    @classmethod
-    def INPUT_TYPES(cls):
-        return {
-            "required": {
-                "json_a": ("STRING", {"multiline": True, "default": ""}),
-                "json_b": ("STRING", {"multiline": True, "default": ""}),
-                "json_a_mode": (["file", "string"], {"default": "string"}),
-                "json_b_mode": (["file", "string"], {"default": "string"}),
-                "merge_strategy": (["deep_merge", "a_first", "b_first"], {"default": "deep_merge"}),
-            },
-            "optional": {
-                "indent": ("INT", {"default": 2}),
-                "output_mode": (["file", "string"], {"default": "string"}),
-                "output_path": ("STRING", {"default": ""}),  # 留空则使用临时文件
-            }
-        }
-
-    RETURN_TYPES = ("STRING",)  # 返回最终生成的 JSON 文件路径或字符串
-    RETURN_NAMES = ("output",)
-    FUNCTION = "combine"
-    CATEGORY = "FileConverter"
-
-    def combine(self, json_a, json_b, json_a_mode, json_b_mode, merge_strategy, indent=None, output_mode="", output_path=""):
-        def _load(j, mode):
-            if mode == "file" and os.path.isfile(j.strip()):
-                try:
-                    with open(j.strip(), "r", encoding="utf-8") as f:
-                        return json.load(f)
-                except Exception as e:
-                    print(f"open file failed: {e}")
-                    return {}
-            else:
-                return json.loads(j)
-
-        a = _load(json_a, json_a_mode)
-        b = _load(json_b, json_b_mode)
-
-        if merge_strategy == "deep_merge":
-            merged = self._deep_merge(a, b)
-        elif merge_strategy == "b_first":
-            merged = {**a, **b}
-        else:  # a_first
-            merged = {**b, **a}
-
-        if indent <= 0 or indent is None:
-            indent = None
-        if output_mode == "file":
-            if not output_path.strip():
-                fd, output_path = tempfile.mkstemp(suffix=".json", text=True)
-                os.close(fd)
-            else:
-                Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-
-            with open(output_path, "w", encoding="utf-8") as f:
-                json.dump(merged, f, ensure_ascii=False, separators=(',', ':') if indent is None else (',', ': '))
-            return (output_path,)
-        else:
-            return (json.dumps(merged, ensure_ascii=False, indent=indent),)
-
-    # ---------- 工具 ----------
-    def _deep_merge(self, a: dict, b: dict) -> dict:
-        result = a.copy()
-        for k, v in b.items():
-            if k in result and isinstance(result[k], dict) and isinstance(v, dict):
-                result[k] = self._deep_merge(result[k], v)
-            elif k in result and isinstance(result[k], list) and isinstance(v, list):
-                result[k] = list(set(result[k] + v))
-            else:
-                result[k] = v
-        return result
 
 
 class LineConverter:
@@ -240,64 +161,7 @@ class FileDictConverter:
         else:
             return (input_content,)
         
-class JsonParser:
-    """
-    从任意文本中提取最外层的 {} 或 [] 合法 JSON 片段；
-    若找不到则输出 {"text": <原文本>}
-    """
 
-    @classmethod
-    def INPUT_TYPES(cls):
-        return {
-            "required": {
-                "text": ("STRING", {"multiline": True, "default": ""}),
-                "input_mode": (["file", "string"], {"default": "string"}),
-            },
-            "optional": {
-                "output_mode": (["file", "string"], {"default": "string"}),
-                "output_path": ("STRING", {"default": ""}),
-            }
-        }
-
-    RETURN_TYPES = ("STRING",)
-    RETURN_NAMES = ("json_string",)
-    FUNCTION = "parse"
-    CATEGORY = "FileConverter"
-
-    # ---------- 主函数 ----------
-    def parse(self, text, input_mode, output_mode="string", output_path=""):
-        # 1. 读取内容
-        if input_mode == "file" and os.path.isfile(text.strip()):
-            with open(text.strip(), "r", encoding="utf-8") as f:
-                raw = f.read()
-        else:
-            raw = text
-
-        # 2. 正则找最外层 {} 或 []
-        match = re.search(r"(?s)(?:\{.*?\}|\[.*?\])", raw.strip())
-        if match:
-            try:
-                parsed = json.loads(match.group())
-                out_str = json.dumps(parsed, ensure_ascii=False, indent=2)
-            except json.JSONDecodeError:
-                out_str = json.dumps({"text": raw}, ensure_ascii=False, indent=2)
-        else:
-            out_str = json.dumps({"text": raw}, ensure_ascii=False, indent=2)
-
-        # 3. 输出方式
-        if output_mode == "file":
-            if not output_path.strip():
-                fd, output_path = tempfile.mkstemp(suffix=".json", text=True)
-                os.close(fd)
-            else:
-                Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-            with open(output_path, "w", encoding="utf-8") as f:
-                f.write(out_str)
-            return (output_path,)
-        else:
-            return (out_str,)
-        
-        
 class FileSplitter:
     """
     根据给定的正则匹配，按匹配的内容前一行或者后一行换行符分割文件，分割成两个文件，并支持文件的名称自定义
@@ -349,42 +213,6 @@ class FileSplitter:
 
         return (output_file_1, output_file_2)
 
-class JsonPromptProcessor:
-    @classmethod
-    def INPUT_TYPES(cls):
-        return {
-            "required": {
-                "json_file": ("STRING", {"multiline": False}),
-                "image_output_dir": ("STRING", {"multiline": False})
-            }
-        }
-
-    RETURN_TYPES = ("STRING", "STRING")   # 第二路输出：json 字符串，包含 key->路径 的映射
-    RETURN_NAMES = ("prompts", "meta_json")
-    FUNCTION = "process_prompts"
-    CATEGORY = "JsonPromptProcessor"
-
-    def process_prompts(self, json_file, image_output_dir):
-        if not os.path.isfile(json_file):
-            raise FileNotFoundError(json_file)
-
-        with open(json_file, encoding="utf-8") as f:
-            prompts = json.load(f)  # {"k1":"prompt1", ...}
-        
-        Path(image_output_dir).mkdir(parents=True, exist_ok=True)
-
-        pending = {}
-        prompt_contents = []
-        for key, prompt in prompts.items():
-            img_path = Path(image_output_dir) / f"{key}.png"
-            pending[key] = str(img_path)
-            prompt_contents.append(prompt)
-
-        # 4) 元数据 json
-        meta_json = json.dumps(pending, ensure_ascii=False, indent=2)
-        return "\n".join(prompt_contents), meta_json
-
-
 def run_all_tests():
     # 1. LineConverter.merge
     lc = LineConverter()
@@ -397,14 +225,8 @@ def run_all_tests():
     txt = "Hello, world! This is a test."
     repl = {"world": "Earth", "test": "example"}
     out = fdc.convert(txt, repl, "string")[0]
-    assert out == "Hello, Earth! This is a example.", f"FileDictConverter test failed: {out}"
 
-    # 3. JsonParser
-    jp = JsonParser()
-    assert json.loads(jp.parse('前缀{"name":"Alice"}后缀', "string")[0]) == {"name": "Alice"}
-    assert json.loads(jp.parse("没有json", "string")[0]) == {"text": "没有json"}
-    
-    # 4. FileSplitter
+    # 3. FileSplitter
     fs = FileSplitter()
     src_file = "test_split.txt"
     with open(src_file, "w", encoding="utf-8") as f:

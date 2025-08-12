@@ -1,23 +1,27 @@
-from .FileConverter import JsonCombiner, LineConverter, FileDictConverter, JsonParser, FileSplitter, JsonPromptProcessor
+from .FileConverter import LineConverter, FileDictConverter, FileSplitter
+from .JsonCoverter import JsonCombiner, JsonParser, JsonPromptProcessor
+from .ImageCoverter import SaveImage
 
 
 # ---------- 节点映射 ----------
 NODE_CLASS_MAPPINGS = {
-    "FileConverter.JsonCombiner": JsonCombiner,
+    "JsonCoverter.JsonCombiner": JsonCombiner,
+    "JsonCoverter.JsonParser": JsonParser,
+    "JsonCoverter.JsonPromptProcessor": JsonPromptProcessor,
     "FileConverter.LineConverter": LineConverter,
     "FileConverter.FileDictConverter": FileDictConverter,
-    "FileConverter.JsonParser": JsonParser,
     "FileConverter.FileSplitter": FileSplitter,
-    "FileConverter.JsonPromptProcessor": JsonPromptProcessor,
+    "ImageCoverter.SaveImage": SaveImage,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "FileConverter.JsonCombiner": "Json Combiner",
-    "FileConverter.LineConverter": "Line Converter",
-    "FileConverter.FileDictConverter": "File Dict Converter",
-    "FileConverter.JsonParser": "Json Converter",
-    "FileConverter.FileSpliter": "File Spliter",
-    "FileConverter.JsonPromptProcessor": "Json Prompt Processor",
+    "JsonCoverter.JsonCombiner": "JsonCombiner",
+    "JsonCoverter.JsonParser": "JsonParser",
+    "JsonCoverter.JsonPromptProcessor": "JsonPromptProcessor",
+    "FileConverter.LineConverter": "LineConverter",
+    "FileConverter.FileDictConverter": "FileDictConverter",
+    "FileConverter.FileSplitter": "FileSplitter",
+    "ImageCoverter.SaveImage": "SaveImage",
 }
 
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS"]

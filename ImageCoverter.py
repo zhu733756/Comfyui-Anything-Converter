@@ -52,13 +52,13 @@ class SaveImage:
         if labels is not None:
             try:
                 if os.path.isfile(labels):
-                    with open(labels) as lf:
+                    with open(labels, "r") as lf:
                         loaded = json.load(lf)
                 else:
                     loaded = json.loads(labels)
                 
                 logger.info(f"labels loaded, labels: {labels}")   
-                label_metadata = {v:k for k,v in loaded.Items()}
+                label_metadata = {v:k for k,v in loaded.items()}
             except Exception as e:
                 logger.warning(f"labels loaded failed {e.args}, labels: {labels}")
          

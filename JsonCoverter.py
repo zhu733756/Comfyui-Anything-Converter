@@ -35,15 +35,16 @@ class JsonCombiner:
 
     def combine(self, json_a, json_b, json_a_mode, json_b_mode, merge_strategy, indent=None, output_mode="", output_path=""):
         def _load(j, mode):
-            if mode == "file" and os.path.isfile(j.strip()):
-                try:
+            try:
+                if mode == "file" and os.path.isfile(j.strip()):
                     with open(j.strip(), "r", encoding="utf-8") as f:
                         return json.load(f)
-                except Exception as e:
-                    print(f"open file failed: {e}")
-                    return {}
-            else:
-                return json.loads(j)
+                else:
+                    return json.loads(j)
+            except Exception as e:
+                logger.warning(f"load file_or_json {j} failed {e.args}")
+                return {}
+            
 
         a = _load(json_a, json_a_mode)
         b = _load(json_b, json_b_mode)

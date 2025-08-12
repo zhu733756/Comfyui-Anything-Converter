@@ -38,6 +38,8 @@ class SaveImage:
     def save_images(self, images, paths, filename_prefix="ComfyUI", 
                     prompt=None, extra_pnginfo=None, caption=None, labels=None):
         path_list = [p.strip() for p in str(paths).splitlines() if p.strip() != ""]
+        
+        logger.info(f"get images {len(images)}, paths: {path_list}, labels: {labels}, captions: {caption}")
         while len(path_list) < len(images):
             path_list.append("")  # 用默认
 
@@ -94,7 +96,7 @@ class SaveImage:
             png_name = f"{base_file}.png"
             png_path = os.path.join(full_out, png_name)
             
-            logger.debug(f"image{idx} saved to {png_path}")
+            logger.info(f"image{idx} saved to {png_path}, cap: {cap}")
             img.save(png_path, pnginfo=metadata, compress_level=self.compress_level)
 
             if cap is not None:

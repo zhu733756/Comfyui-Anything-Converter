@@ -3,6 +3,7 @@ import json
 import numpy as np
 from PIL import Image, PngImagePlugin
 import logging
+from pathlib import Path
 import folder_paths
 from comfy.cli_args import args
 
@@ -18,8 +19,8 @@ class SaveImage:
         return {
             "required": {
                 "images": ("IMAGE", {"tooltip": "The images to save."}),
-                "paths": ("STRING", {"multiline": True, "tooltip": "One absolute path per line, same count as images. Empty → use default output dir."}),
                 "filename_prefix": ("STRING", {"default": "ComfyUI", "tooltip": "File name prefix, supports %date% etc."}),
+                "output_metadata": ("STRING", {"default": "output/novels/metadata.json", "tooltip": "where to store metadata"}),
             },
             "optional": {
                 "caption": ("STRING", {"forceInput": True, "tooltip": "One caption per line, same count as images."}),
@@ -29,19 +30,43 @@ class SaveImage:
         }
 
     RETURN_TYPES = ("STRING",)
-    RETURN_NAMES = ("metadata",)
+    RETURN_NAMES = ("status",)
     FUNCTION = "save_images"
     OUTPUT_NODE = True
     CATEGORY = "SaveImage"
     DESCRIPTION = "Save each image to its own custom path. Empty path falls back to default output folder."
+    
+    def _load(self, file_or_str):
+        try:
+            if os.path.isfile(file_or_str):
+                with open(file_or_str, "r") as lf:
+                    return json.load(lf)
+            else:
+                return json.loads(file_or_str)
+        except Exception as e:
+            logger.warning(f"loaded failed {e.args}, labels: {file_or_str}")
+         
+    def _deep_merge(self, a: dict, b: dict) -> dict:
+        result = a.copy()
+        for k, v in b.items():
+            if k in result and isinstance(result[k], dict) and isinstance(v, dict):
+                result[k] = self._deep_merge(result[k], v)
+            elif k in result and isinstance(result[k], list) and isinstance(v, list):
+                result[k] = list(set(result[k] + v))
+            else:
+                result[k] = v
+        return result          
 
-    def save_images(self, images, paths, filename_prefix="ComfyUI", 
+    def save_images(self, images, filename_prefix="ComfyUI", output_metadata="output/novels/metadata.json" ,
                     prompt=None, extra_pnginfo=None, caption=None, labels=None):
-        path_list = [p.strip() for p in str(paths).splitlines() if p.strip() != ""]
+  
+        logger.info(f"get images {len(images)}, labels: {labels}, captions: {caption}")
         
-        logger.info(f"get images {len(images)}, paths: {path_list}, labels: {labels}, captions: {caption}")
-        while len(path_list) < len(images):
-            path_list.append("")  # 用默认
+        Path(output_metadata).parent.mkdir(parents=True)
+        
+        merged_metadata = {}
+        if os.path.exists(output_metadata):
+            merged_metadata = self._load(output_metadata)
 
         if caption is None:
             caption_list = [None] * len(images)
@@ -52,26 +77,13 @@ class SaveImage:
                 
         label_metadata = {}
         if labels is not None:
-            try:
-                if os.path.isfile(labels):
-                    with open(labels, "r") as lf:
-                        loaded = json.load(lf)
-                else:
-                    loaded = json.loads(labels)
-                
-                logger.info(f"labels loaded, labels: {labels}")   
-                label_metadata = {v:k for k,v in loaded.items()}
-            except Exception as e:
-                logger.warning(f"labels loaded failed {e.args}, labels: {labels}")
-         
+            loaded = self._load(labels) 
+            label_metadata = {v:k for k,v in loaded.items()}
+            
         results = {}
-        for idx, (image, custom_path, cap) in enumerate(zip(images, path_list, caption_list)):
-            # 1. 决定输出目录
-            if custom_path and os.path.isabs(custom_path):
-                out_dir = custom_path
-            else:
-                out_dir = folder_paths.get_output_directory()
-
+        out_dir = folder_paths.get_output_directory()
+        
+        for idx, (image,  cap) in enumerate(zip(images,  caption_list)):
             # 2. 使用 comfy 自带的计数器机制
             full_out, filename, counter, subfolder, prefix = folder_paths.get_save_image_path(
                 filename_prefix, out_dir, image.shape[1], image.shape[0]
@@ -109,7 +121,10 @@ class SaveImage:
             counter += 1  # 计数器每图自增
 
         # 返回 json 字符串，方便下游节点继续用
-        return (json.dumps(results, ensure_ascii=False),)
+        results = self._deep_merge(merged_metadata, results)
+        with open(output_metadata, "w") as fb:
+            json.dump(fb, results)
+        return (png_path,)
 
 
 def test_save_image():

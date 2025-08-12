@@ -4,6 +4,9 @@ import json
 import tempfile
 from pathlib import Path
 import logging
+import asyncio
+from comfy.model_management import InterruptProcessingException, interrupt_processing 
+
 
 logger = logging.getLogger(__name__)
 
@@ -308,8 +311,8 @@ class FileSplitter:
             }
         }
 
-    RETURN_TYPES = ("STRING", "STRING")
-    RETURN_NAMES = ("output_file_1", "output_file_2")
+    RETURN_TYPES = ("STRING", "STRING",)
+    RETURN_NAMES = ("output_file_1", "output_file_2",)
     FUNCTION = "split"
     CATEGORY = "FileConverter"
 
@@ -342,12 +345,9 @@ class FileSplitter:
             f.writelines(part2)
 
         return (output_file_1, output_file_2)
-    
+
 
 class JsonPromptProcessor:
-    def __init__(self):
-        self.state_file = os.path.join(os.path.dirname(__file__), "json_prompt_processor_state.json")
-        self.state = self.load_state()
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -355,94 +355,69 @@ class JsonPromptProcessor:
             "required": {
                 "json_file": ("STRING", {"multiline": False, "default": "Enter the path to your JSON file here"}),
                 "output_file": ("STRING", {"multiline": False, "default": "Enter the path to save the output JSON file here"}),
-                "image_output_dir": ("STRING", {"multiline": False, "default": "Enter the directory to save generated images here"}),
-                "start_index": ("INT", {"default": 0, "min": 0, "max": 10000})
+                "image_output_dir": ("STRING", {"multiline": False, "default": "Enter the directory to save generated images here"})
             }
         }
 
-    RETURN_TYPES = ("STRING", "STRING", "INT")
-    RETURN_NAMES = ("prompt", "status", "current_index")
+    RETURN_TYPES = ("STRING", "STRING",)
+    RETURN_NAMES = ("prompt", "status",)
     FUNCTION = "process_prompts"
     CATEGORY = "JsonPromptProcessor"
 
-    def process_prompts(self, json_file, output_file, image_output_dir, start_index):
+    async def process_prompts(self, json_file, output_file, image_output_dir):
         try:
             if not json_file.strip() or json_file == "Enter the path to your JSON file here":
-                return ("", "Error: Please provide a valid JSON file path", -1)
+                return ("", "Error: Please provide a valid JSON file path")
 
             if not os.path.exists(json_file):
-                return ("", f"Error: JSON file not found: {json_file}", -1)
+                return ("", f"Error: JSON file not found: {json_file}")
 
             if not os.path.exists(image_output_dir):
                 os.makedirs(image_output_dir)
 
-            file_changed = self.state.get("last_file") != json_file
-            index_changed = self.state.get("last_start_index") != start_index
+            # Load prompts from JSON file
+            with open(json_file, 'r', encoding='utf-8') as file:
+                prompts = json.load(file)
 
-            if file_changed:
-                self.load_prompts(json_file)
-                self.state["last_file"] = json_file
-                self.state["current_index"] = start_index
-            elif index_changed:
-                self.state["current_index"] = start_index
-            else:
-                self.state["current_index"] = (self.state.get("current_index", 0) + 1) % len(self.state["prompts"])
+            # Initialize output dictionary
+            output_data = {}
 
-            self.state["last_start_index"] = start_index
-            current_index = self.state["current_index"]
-
-            if current_index < len(self.state["prompts"]):
-                key, prompt = list(self.state["prompts"].items())[current_index]
+            # Save output to the specified file
+            Path(output_file).parent.mkdir(parents=True, exist_ok=True)
+            # Process each prompt
+            for key, prompt in prompts.items():
                 # Simulate image generation and get the image path
-                image_path = self.generate_image(prompt, image_output_dir, key)
-                self.state["prompts"][key] = image_path
-            else:
-                prompt = ""
-                logger.info("No more prompts. Returning empty string.")
+                if interrupt_processing:
+                    raise InterruptProcessingException
+                
+                image_path = await self.generate_image(prompt, image_output_dir, key)
+                output_data[key] = image_path
 
-            if output_file.strip() and output_file != "Enter the path to save the output JSON file here":
-                Path(output_file).parent.mkdir(parents=True, exist_ok=True)
-                with open(output_file, 'w') as f:
-                    json.dump(f, self.state["prompts"])
-                    
-            self.save_state()
-            status = f"Processed {current_index + 1}/{len(self.state['prompts'])} | File: {os.path.basename(json_file)}"
-            return (prompt, status, current_index)
+
+            with open(output_file, 'w') as f:
+                json.dump(output_data, f, indent=4)
+
+            status = f"Processed {len(prompts)} prompts. Output saved to {output_file}"
+            return (prompt, status, )
         except Exception as e:
             logger.error(f"Error in process_prompts: {str(e)}")
-            return ("", f"Error: {str(e)}", -1)
+            return ("no prompt", f"Error: {str(e)}")
 
-    def load_prompts(self, json_file):
-        try:
-            with open(json_file, 'r', encoding='utf-8') as file:
-                self.state["prompts"] = json.load(file)
-            logger.info(f"Loaded {len(self.state['prompts'])} prompts from {json_file}")
-        except Exception as e:
-            logger.error(f"Error loading prompts: {str(e)}")
-            raise
-
-    def generate_image(self, prompt, image_output_dir, key):
+    async def generate_image(self, prompt, image_output_dir, key):
         # Placeholder for image generation logic
         # Replace this with your actual image generation code
         image_path = os.path.join(image_output_dir, f"{key}.png")
         logger.info(f"Generated image for prompt: {prompt} at {image_path}")
+
+        # Simulate asynchronous image generation
+        await asyncio.sleep(5)  # Simulate delay
+
+        # Check if the image is generated
+        if not os.path.exists(image_path):
+            logger.warning(f"Image not generated for prompt: {prompt}")
+            return ""
+
         return image_path
-
-    def load_state(self):
-        try:
-            if os.path.exists(self.state_file):
-                with open(self.state_file, 'r') as f:
-                    return json.load(f)
-        except Exception as e:
-            logger.error(f"Error loading state file: {str(e)}")
-        return {"prompts": {}, "current_index": 0, "last_file": "", "last_start_index": 0}
-
-    def save_state(self):
-        try:
-            with open(self.state_file, 'w') as f:
-                json.dump(self.state, f)
-        except Exception as e:
-            logger.error(f"Error saving state file: {str(e)}")
 
     @classmethod
     def IS_CHANGED(cls, **kwargs):

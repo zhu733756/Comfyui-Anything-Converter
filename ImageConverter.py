@@ -13,9 +13,8 @@ class SaveImage:
         self.type = "output"
         self.compress_level = 4
         self.output_metadata="output/metadata/metadata.json"
-        if os.path.exists(self.output_metadata):
-            os.remove(self.output_metadata)
-        Path(self.output_metadata).parent.mkdir(parents=True, exist_ok=True)
+        if not os.path.exists(self.output_metadata):
+            Path(self.output_metadata).parent.mkdir(parents=True, exist_ok=True)
 
     @classmethod
     def INPUT_TYPES(cls):

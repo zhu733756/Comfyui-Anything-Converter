@@ -65,7 +65,7 @@ class SaveImage:
         label_metadata = {}
         if labels is not None:
             loaded = load_json(labels) 
-            label_metadata= {v:k for k,v in loaded.items()}
+            label_metadata= {str(v).strip():k for k,v in loaded.items()}
             
         
         out_dir = folder_paths.get_output_directory()
@@ -96,13 +96,13 @@ class SaveImage:
             png_path = os.path.join(full_out, png_name)
             
             
-            logger.info(f"image{img_idx} saved to {png_path}, cap: {cap.strip()}")
+            logger.info(f"image{img_idx} saved to {png_path}")
             img.save(png_path, pnginfo=metadata, compress_level=self.compress_level)
 
             if img_idx < len(caption_list):
                 cap = caption_list[img_idx]
                 if cap in label_metadata:
-                    results[label_metadata[cap]] = png_path
+                    results[label_metadata[cap.strip()]] = png_path
                 else:
                     results[img_idx] = png_path
             else:

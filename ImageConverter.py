@@ -79,7 +79,7 @@ class SaveImage:
                 
         label_metadata = {}
         if labels is not None:
-            label_metadata = {x.split(":")[1]:tuple(x.split(":")[0], x.split(":")[2]) for x in str(load_content(labels)).splitlines() if len(x.split(":"))>=3}
+            label_metadata = {x.split(":")[1]:(x.split(":")[0], x.split(":")[2]) for x in str(load_content(labels)).splitlines() if len(x.split(":"))>=3}
         if not label_metadata:
             raise "label metadata not given"
         

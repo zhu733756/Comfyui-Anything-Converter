@@ -13,7 +13,6 @@ class SaveImage:
         self.type = "output"
         self.compress_level = 4
         self.output_metadata="output/metadata/metadata.json"
-        self.caption_list = []
         if os.path.exists(self.output_metadata):
             os.remove(self.output_metadata)
         Path(self.output_metadata).parent.mkdir(parents=True, exist_ok=True)
@@ -26,7 +25,6 @@ class SaveImage:
                 "filename_prefix": ("STRING", {"default": "ComfyUI", "tooltip": "File name prefix, supports %date% etc."}),
             },
             "optional": {
-                "caption": ("STRING", {"forceInput": True, "tooltip": "One caption per line, same count as images."}),
                 "labels": ("STRING", {"forceInput": True, "tooltip": "json str mapping for caption"}),
             },
             "hidden": {"prompt": "PROMPT", "extra_pnginfo": "EXTRA_PNGINFO"},
@@ -51,47 +49,37 @@ class SaveImage:
         return result 
     
     def get_prompt_key(self, label_metadata, img_idx):
-        if 0<= img_idx-1 < len(self.caption_list):
-            cap = self.caption_list[img_idx-1]
-            if isinstance(cap, str):
-                prompt_key, fixed = label_metadata.get(cap.strip(), ("", "no-fixed"))
-                if fixed == "fixed":
-                    # skip this png
-                    return self.get_prompt_key(label_metadata, img_idx+1)
-                else:
-                    return prompt_key, img_idx
+        if 0<= img_idx-1 < len(label_metadata):
+            meta = label_metadata[img_idx-1]
+            prompt_key, _, fixed = meta.split(":")
+            if fixed == "fixed":
+                return self.get_prompt_key(label_metadata, img_idx+1)
+            else:
+                return prompt_key,  img_idx
         
-        return f"{img_idx}",img_idx
+        return "", -1
                  
 
     def save_images(self, images, filename_prefix="ComfyUI" ,
-                    prompt=None, extra_pnginfo=None, caption=None, labels=None):
-        merged_metadata = load_json(self.output_metadata)
-
-        if caption is None:
-            self.caption_list = [None] * len(images)
-        else:
-            self.caption_list = [c.strip() for c in str(caption).splitlines()]
-            while len(self.caption_list) < len(images):
-                self.caption_list.append(None)
-                
-        label_metadata = {}
-        if labels is not None:
-            label_metadata = {x.split(":")[1]:(x.split(":")[0], x.split(":")[2]) for x in str(load_content(labels)).splitlines() if len(x.split(":"))>=3}
-        if not label_metadata:
-            raise "label metadata not given"
+                    prompt=None, extra_pnginfo=None,  labels=None):
+        if labels is None:
+            raise "metadata like key:prompt:fixed/no-fixed must given"
         
         out_dir = folder_paths.get_output_directory()
-        
+        merged_metadata = load_json(self.output_metadata)
+        label_metadata = [x.split(":") for x in str(load_content(labels)).splitlines() if len(x.split(":"))>=3]
+  
         for _, image in enumerate(images):
             full_out, filename, _, _, _ = folder_paths.get_save_image_path(
                 filename_prefix, out_dir, image.shape[1], image.shape[0]
             )
             
-            next_img_idx = (merged_metadata.get("idx", 0)) % len(self.caption_list) + 1
+            next_img_idx = (merged_metadata.get("idx", 0)) % len(label_metadata) + 1
             prompt_key, next_img_idx = self.get_prompt_key(label_metadata=label_metadata, img_idx=next_img_idx)
-
-            base_file = f"{filename}_{next_img_idx:05}"
+            if prompt_key != "" and prompt_key in merged_metadata:
+                base_file = merged_metadata[prompt_key] # replace in merged_metadata
+            else:
+                base_file = f"{filename}_{next_img_idx:05}"
 
             i = 255.0 * image.cpu().numpy()
             img = Image.fromarray(np.clip(i, 0, 255).astype(np.uint8))

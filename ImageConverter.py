@@ -2,12 +2,13 @@ import os
 import json
 import numpy as np
 import torch
-from PIL import Image, PngImagePlugin
+from PIL import Image, ImageOps, PngImagePlugin
 from .utils import load_json, load_content, logger
 from pathlib import Path
 import folder_paths
 import node_helpers
 from comfy.cli_args import args
+import hashlib
 
 
 class SaveImage:
@@ -103,7 +104,7 @@ class SaveImage:
         with open(self.output_metadata, "w") as fb:
             json.dump(merged_metadata, fb, ensure_ascii=False)
         return json.dumps(merged_metadata)
-    
+
 
 class LoadImageTextSetFromMetadata:
     @classmethod
@@ -112,96 +113,107 @@ class LoadImageTextSetFromMetadata:
             "required": {
                 "character2prompt_path": ("STRING", {"default": "character2prompt.json"}),
                 "character2img_path": ("STRING", {"default": "character2img.json"}),
-                "clip": ("CLIP",),
             },
             "optional": {
                 "resize_method": (["None", "Stretch", "Crop", "Pad"], {"default": "None"}),
-                "width": ("INT", {"default": -1, "min": -1, "max": 10000, "step": 1}),
+                "width":  ("INT", {"default": -1, "min": -1, "max": 10000, "step": 1}),
                 "height": ("INT", {"default": -1, "min": -1, "max": 10000, "step": 1}),
             },
         }
 
-    RETURN_TYPES = ("IMAGE", "CONDITIONING", "STRING")
-    RETURN_NAMES = ("IMAGE", "CONDITIONING", "CHARS")
+    RETURN_TYPES = ("IMAGE", "MASK", "STRING")
+    RETURN_NAMES = ("IMAGE", "MASK", "CAPTIONS")
     FUNCTION = "load"
-    CATEGORY = "LoadImage"
-    DESCRIPTION = "Load images & prompts from two JSON files."
+    CATEGORY = "image"
 
-    def load(self, character2prompt_path, character2img_path, clip, resize_method="None", width=-1, height=-1):
+    # ---------- 主逻辑 ----------
+    def load(self, character2prompt_path, character2img_path, resize_method="None", width=-1, height=-1):
         char2prompt = load_json(character2prompt_path)
-        char2imgs = load_json(character2img_path)
-        
-        logger.info(f"get char2prompt metadata: {char2prompt}")
-        logger.info(f"get char2imgs metadata: {char2imgs}")
+        char2imgs   = load_json(character2img_path)
 
         # 2. 拼路径 & 提示词
         image_paths, captions = [], []
-        for char, img in char2imgs.items():
-            if char == "idx":
+        for char, img_path in char2imgs.items():
+            if char == "idx" or not os.path.isfile(img_path):
                 continue
-            if os.path.exists(img):
-                image_paths.append(img)
-                captions.append(char2prompt.get(char, ""))
-            else:
-                logger.warning(f'image {img} not exists')
+            image_paths.append(img_path)
+            captions.append(char2prompt.get(char, ""))
 
-        # 3. 载入图片
-        output_tensor = self._load(image_paths, resize_method,
-                                          width if width != -1 else None,
+        if not image_paths:
+            raise RuntimeError("No valid images found in metadata.")
+
+        images, masks = self._load_images(image_paths, resize_method,
+                                          width  if width  != -1 else None,
                                           height if height != -1 else None)
 
-        # 4. 编码提示词
-        conds = []
-        empty = clip.encode_from_tokens_scheduled(clip.tokenize(""))
-        for cap in captions:
-            if not cap:
-                conds.append(empty)
-            else:
-                conds.append(clip.encode_from_tokens_scheduled(clip.tokenize(cap)))
+        return (images, masks, "\n".join(captions))
 
-        logger.info(f"Loaded {len(output_tensor)} images / {len(conds)} captions.")
-        return (output_tensor, conds, "\n".join(captions))
-    
-    def _load(self, image_files, resize_method="None", w=None, h=None):
-        """Utility function to load and process a list of images.
+    # ---------- 载入图片 ----------
+    def _load_images(self, paths, resize_method, w, h):
+        out_imgs, out_masks = [], []
+        target_w = target_h = None
 
-        Args:
-            image_files: List of image filenames
-            resize_method: How to handle images of different sizes ("None", "Stretch", "Crop", "Pad")
+        for p in paths:
+            img = node_helpers.pillow(Image.open, p)
+            img = node_helpers.pillow(ImageOps.exif_transpose, img)
 
-        Returns:
-            torch.Tensor: Batch of processed images
-        """
-        if not image_files:
-            raise ValueError("No valid images found in input")
+            # 16-bit PNG -> 8-bit
+            if img.mode == 'I':
+                img = img.point(lambda i: i * (1 / 65535))
 
-        output_images = []
-
-        for image_path in image_files:
-            img = node_helpers.pillow(Image.open, image_path)
-
-            if img.mode == "I":
-                img = img.point(lambda i: i * (1 / 255))
+            # 统一 RGB
             img = img.convert("RGB")
 
-            if w is None and h is None:
-                w, h = img.size[0], img.size[1]
+            # 首张尺寸
+            if target_w is None:
+                target_w, target_h = img.size
 
-            # Resize image to first image
-            if img.size[0] != w or img.size[1] != h:
-                if resize_method == "Stretch":
-                    img = img.resize((w, h), Image.Resampling.LANCZOS)
-                elif resize_method == "Crop":
-                    img = img.crop((0, 0, w, h))
-                elif resize_method == "Pad":
-                    img = img.resize((w, h), Image.Resampling.LANCZOS)
-                elif resize_method == "None":
-                    raise ValueError(
-                        "Your input image size does not match the first image in the dataset. Either select a valid resize method or use the same size for all images."
-                    )
+            # 缩放
+            if (img.width, img.height) != (target_w, target_h):
+                img = self._resize(img, target_w, target_h, resize_method)
 
-            img_array = np.array(img).astype(np.float32) / 255.0
-            img_tensor = torch.from_numpy(img_array)[None,]
-            output_images.append(img_tensor)
+            # 转 Tensor
+            np_img = np.array(img).astype(np.float32) / 255.0
+            tensor = torch.from_numpy(np_img)[None,]
+            out_imgs.append(tensor)
+            out_masks.append(torch.zeros((64, 64), dtype=torch.float32))  # 占位空 mask
 
-        return torch.cat(output_images, dim=0)
+        return torch.cat(out_imgs, dim=0), torch.stack(out_masks, dim=0)
+
+    # ---------- 缩放 ----------
+    @staticmethod
+    def _resize(img, w, h, method):
+        if method == "Stretch":
+            return img.resize((w, h), Image.LANCZOS)
+        elif method == "Crop":
+            img = img.copy()
+            img.thumbnail((w, h), Image.LANCZOS)
+            left = (img.width - w) // 2
+            top  = (img.height - h) // 2
+            return img.crop((left, top, left + w, top + h))
+        elif method == "Pad":
+            img.thumbnail((w, h), Image.LANCZOS)
+            new_img = Image.new("RGB", (w, h))
+            new_img.paste(img, ((w - img.width) // 2, (h - img.height) // 2))
+            return new_img
+        else:
+            raise ValueError("Image sizes do not match and resize_method='None'.")
+
+    # ---------- 变更检测 ----------
+    @classmethod
+    def IS_CHANGED(cls, character2prompt_path, character2img_path, **kw):
+        h = hashlib.sha256()
+        for name in (character2prompt_path, character2img_path):
+            path = os.path.join(folder_paths.get_input_directory(), name)
+            if os.path.isfile(path):
+                with open(path, "rb") as f:
+                    h.update(f.read())
+        return h.hexdigest()
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, character2prompt_path, character2img_path, **kw):
+        for name in (character2prompt_path, character2img_path):
+            path = os.path.join(folder_paths.get_input_directory(), name)
+            if not os.path.isfile(path):
+                return f"File not found: {name}"
+        return True

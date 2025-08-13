@@ -20,7 +20,7 @@ FileConverter
 ImageConverter
 
 - **Save Image**: based on [ComfyUI-KJNodes: Save Image KJ](https://github.com/kijai/ComfyUI-KJNodes), retrieves paths of all generated images.
-- **Load Image**: based on[LoadImageTextSetFromFolderNode](https://github.com/comfyanonymous/ComfyUI/blob/615eb52049df98cebdd67bc672b66dc059171d7c/comfy_extras/nodes_train.py#L249), using metadata by character2prompt.json and character2img.json to load image.
+- **Load Image**: based on [LoadImage](https://github.com/comfyanonymous/ComfyUI/blob/615eb52049df98cebdd67bc672b66dc059171d7c/nodes.py#L1626), using metadata by character2prompt.json and character2img.json to load image.
 
 ### Installation
 

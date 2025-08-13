@@ -77,9 +77,12 @@ class SaveImage:
             next_img_idx = (merged_metadata.get("idx", 0)) % len(label_metadata) + 1
             prompt_key, next_img_idx = self.get_prompt_key(label_metadata=label_metadata, img_idx=next_img_idx)
             if prompt_key != "" and prompt_key in merged_metadata:
-                base_file = merged_metadata[prompt_key] # replace in merged_metadata
+                png_path = merged_metadata[prompt_key] # replace in merged_metadata
             else:
-                base_file = f"{filename}_{next_img_idx:05}"
+                png_path = os.path.join(full_out, f"{filename}_{next_img_idx:05}.png")   
+                
+            merged_metadata[prompt_key] = png_path
+            merged_metadata["idx"] = next_img_idx  
 
             i = 255.0 * image.cpu().numpy()
             img = Image.fromarray(np.clip(i, 0, 255).astype(np.uint8))
@@ -93,11 +96,6 @@ class SaveImage:
                     for k, v in extra_pnginfo.items():
                         metadata.add_text(k, json.dumps(v))
 
-            png_name = f"{base_file}.png"
-            png_path = os.path.join(full_out, png_name)
-            merged_metadata[prompt_key] = png_path
-            merged_metadata["idx"] = next_img_idx  
-            
             logger.info(f"image{next_img_idx} saved to {png_path}, prompt key: {prompt_key}")
             img.save(png_path, pnginfo=metadata, compress_level=self.compress_level)
 

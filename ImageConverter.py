@@ -60,7 +60,7 @@ class SaveImage:
             while len(caption_list) < len(images):
                 caption_list.append(None)
                 
-        logger.info(f"get images {len(images)}, shape {image.shape[0]}/{image.shape[1]}, labels: {labels}, captions: {caption}")
+        logger.info(f"get images {len(images)}, labels: {labels}, captions: {caption}")
                 
         label_metadata = {}
         if labels is not None:

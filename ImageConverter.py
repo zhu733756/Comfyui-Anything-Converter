@@ -67,7 +67,7 @@ class SaveImage:
         
         out_dir = folder_paths.get_output_directory()
         merged_metadata = load_json(self.output_metadata)
-        label_metadata = [x.split(":") for x in str(load_content(labels)).splitlines() if len(x.split(":"))>=3]
+        label_metadata = [x.strip() for x in str(load_content(labels)).splitlines() if len(x.strip().split(":"))>=3]
   
         for _, image in enumerate(images):
             full_out, filename, _, _, _ = folder_paths.get_save_image_path(

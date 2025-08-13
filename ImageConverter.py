@@ -93,26 +93,24 @@ class SaveImage:
                         metadata.add_text(k, json.dumps(v))
 
             png_name = f"{base_file}.png"
-            png_path = os.path.join(full_out, png_name)
-            
-            
-            logger.info(f"image{img_idx} saved to {png_path}")
+            png_path = os.path.join(full_out, png_name)   
             img.save(png_path, pnginfo=metadata, compress_level=self.compress_level)
 
             if img_idx < len(caption_list):
                 cap = caption_list[img_idx]
-                if cap in label_metadata:
-                    results[label_metadata[cap.strip()]] = png_path
-                else:
-                    results[img_idx] = png_path
+                if isinstance(cap, str):
+                    cap = cap.strip()
+                ele = label_metadata.get(cap, img_idx)
+                logger.info(f"image{img_idx} saved to {png_path}, cap {cap}")
+                results[ele] = png_path
             else:
+                logger.info(f"image{img_idx} saved to {png_path}, no cap")
                 results[img_idx] = png_path
             
             results.setdefault("idx", img_idx)
 
         # 返回 json 字符串，方便下游节点继续用
         results = self._deep_merge(merged_metadata, results)
-        output = json.dumps(results)
         with open(self.output_metadata, "w") as fb:
             json.dump(results, fb, ensure_ascii=False)
-        return output
+        return json.dumps(results)

@@ -12,6 +12,10 @@ class SaveImage:
     def __init__(self):
         self.type = "output"
         self.compress_level = 4
+        self.output_metadata="output/metadata/metadata.json"
+        if os.path.exists(self.output_metadata):
+            os.remove(self.output_metadata)
+        Path(self.output_metadata).parent.mkdir(parents=True, exist_ok=True)
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -19,7 +23,6 @@ class SaveImage:
             "required": {
                 "images": ("IMAGE", {"tooltip": "The images to save."}),
                 "filename_prefix": ("STRING", {"default": "ComfyUI", "tooltip": "File name prefix, supports %date% etc."}),
-                "output_metadata": ("STRING", {"default": "output/novels/metadata.json", "tooltip": "where to store metadata"}),
             },
             "optional": {
                 "caption": ("STRING", {"forceInput": True, "tooltip": "One caption per line, same count as images."}),
@@ -29,7 +32,7 @@ class SaveImage:
         }
 
     RETURN_TYPES = ("STRING")
-    RETURN_NAMES = ("status")
+    RETURN_NAMES = ("output")
     FUNCTION = "save_images"
     OUTPUT_NODE = True
     CATEGORY = "SaveImage"
@@ -46,13 +49,9 @@ class SaveImage:
                 result[k] = v
         return result          
 
-    def save_images(self, images, filename_prefix="ComfyUI", output_metadata="output/novels/metadata.json" ,
+    def save_images(self, images, filename_prefix="ComfyUI" ,
                     prompt=None, extra_pnginfo=None, caption=None, labels=None):
-        merged_metadata = {}
-        if os.path.exists(output_metadata):
-            merged_metadata = load_json(output_metadata)
-        else:
-            Path(output_metadata).parent.mkdir(parents=True, exist_ok=True)
+        merged_metadata = load_json(self.output_metadata)
 
         if caption is None:
             caption_list = [None] * len(images)
@@ -61,23 +60,25 @@ class SaveImage:
             while len(caption_list) < len(images):
                 caption_list.append(None)
                 
-        caps = ";".join(caption_list)
-        logger.info(f"get images {len(images)}, prompt: {prompt}, labels: {labels}, captions: {caps}")
+        logger.info(f"get images {len(images)}, shape {image.shape[0]}/{image.shape[1]}, labels: {labels}, captions: {caption}")
                 
         label_metadata = {}
         if labels is not None:
             loaded = load_json(labels) 
-            label_metadata = {v:k for k,v in loaded.items()}
+            label_metadata= {v:k for k,v in loaded.items()}
             
-        results = {}
+        
         out_dir = folder_paths.get_output_directory()
         
-        for idx, (image,  cap) in enumerate(zip(images,  caption_list)):
-            full_out, filename, counter, subfolder, prefix = folder_paths.get_save_image_path(
+        results = {}
+        for idx, image in enumerate(images):
+            img_idx = merged_metadata.get("idx", 0) + 1
+            
+            full_out, filename, _, subfolder, prefix = folder_paths.get_save_image_path(
                 filename_prefix, out_dir, image.shape[1], image.shape[0]
             )
 
-            base_file = f"{filename}_{counter:05}"
+            base_file = f"{filename}_{img_idx:05}"
 
             i = 255.0 * image.cpu().numpy()
             img = Image.fromarray(np.clip(i, 0, 255).astype(np.uint8))
@@ -94,20 +95,24 @@ class SaveImage:
             png_name = f"{base_file}.png"
             png_path = os.path.join(full_out, png_name)
             
-            logger.info(f"image{idx} saved to {png_path}, cap: {cap.strip()}")
+            
+            logger.info(f"image{img_idx} saved to {png_path}, cap: {cap.strip()}")
             img.save(png_path, pnginfo=metadata, compress_level=self.compress_level)
 
-            if cap is not None:
+            if img_idx < len(caption_list):
+                cap = caption_list[img_idx] is not None
                 if cap in label_metadata:
                     results[label_metadata[cap]] = png_path
                 else:
                     results[cap] = png_path
             else:
                 results[idx] = png_path
-            counter += 1  # 计数器每图自增
+            
+            results.setdefault("idx", img_idx)
 
         # 返回 json 字符串，方便下游节点继续用
         results = self._deep_merge(merged_metadata, results)
-        with open(output_metadata, "w") as fb:
-            json.dump(fb, results)
-        return str(png_path)
+        output = json.dumps(results)
+        with open(self.output_metadata, "w") as fb:
+            json.dump(results, fb, ensure_ascii=False)
+        return output

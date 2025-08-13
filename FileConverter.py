@@ -3,9 +3,7 @@ import re
 import json
 import tempfile
 from pathlib import Path
-import logging
-
-logger = logging.getLogger(__name__)
+from utils import load_json, load_content
 
 class LineConverter:
     """
@@ -116,30 +114,10 @@ class FileDictConverter:
     CATEGORY = "FileConverter"
 
     def convert(self, input, dict_input, output_mode="string", output_file=""):
-        def _load_content(content):
-            """加载输入内容"""
-            if  os.path.isfile(content.strip()):
-                with open(content.strip(), "r", encoding="utf-8") as f:
-                    return f.read()
-            else:
-                return content
-
-        def _load_dict(d):
-            """加载替换字典"""
-            if isinstance(d, dict):
-                return d
-            
-            if isinstance(d, str):
-                if os.path.isfile(d.strip()):
-                    with open(d.strip(), "r", encoding="utf-8") as f:
-                        return json.load(f)
-                else:
-                    return json.loads(d)
-
         # 加载输入内容
-        input_content = _load_content(input)
+        input_content = load_content(input)
         # 加载替换字典
-        replace_dict = _load_dict(dict_input)
+        replace_dict = load_json(dict_input)
 
         # 替换逻辑
         for key, value in replace_dict.items():

@@ -2,10 +2,8 @@ import os
 import re
 import json
 import tempfile
-import logging
 from pathlib import Path
-
-logger = logging.getLogger(__name__)
+from utils import load_json, load_content, logger
 
 class JsonCombiner:
     """
@@ -34,20 +32,8 @@ class JsonCombiner:
     CATEGORY = "FileConverter"
 
     def combine(self, json_a, json_b, json_a_mode, json_b_mode, merge_strategy, indent=None, output_mode="", output_path=""):
-        def _load(j, mode):
-            try:
-                if mode == "file" and os.path.isfile(j.strip()):
-                    with open(j.strip(), "r", encoding="utf-8") as f:
-                        return json.load(f)
-                else:
-                    return json.loads(j)
-            except Exception as e:
-                logger.warning(f"load file_or_json {j} failed {e.args}")
-                return {}
-            
-
-        a = _load(json_a, json_a_mode)
-        b = _load(json_b, json_b_mode)
+        a = load_json(json_a, json_a_mode)
+        b = load_json(json_b, json_b_mode)
 
         if merge_strategy == "deep_merge":
             merged = self._deep_merge(a, b)
@@ -99,7 +85,6 @@ class JsonParser:
         return {
             "required": {
                 "text": ("STRING", {"multiline": True, "default": ""}),
-                "input_mode": (["file", "string"], {"default": "string"}),
             },
             "optional": {
                 "output_mode": (["file", "string"], {"default": "string"}),
@@ -113,13 +98,9 @@ class JsonParser:
     CATEGORY = "FileConverter"
 
     # ---------- 主函数 ----------
-    def parse(self, text, input_mode, output_mode="string", output_path=""):
+    def parse(self, text, output_mode="string", output_path=""):
         # 1. 读取内容
-        if input_mode == "file" and os.path.isfile(text.strip()):
-            with open(text.strip(), "r", encoding="utf-8") as f:
-                raw = f.read()
-        else:
-            raw = text
+        raw = load_content(text)
 
         # 2. 正则找最外层 {} 或 []
         match = re.search(r"(?s)(?:\{.*?\}|\[.*?\])", raw.strip())
@@ -151,41 +132,27 @@ class JsonPromptProcessor:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "metadata": ("STRING", {"multiline": False}),
-                "image_output_dir": ("STRING", {"multiline": False})
+                "metadata": ("STRING", {"multiline": False})
             }
         }
 
-    RETURN_TYPES = ("STRING", "STRING")   # 第二路输出：json 字符串，包含 key->路径 的映射
-    RETURN_NAMES = ("prompts", "meta_json")
+    RETURN_TYPES = ("STRING", "STRING")
+    RETURN_NAMES = ("prompts.txt", "metadata.txt")
     FUNCTION = "process_prompts"
     CATEGORY = "JsonPromptProcessor"
 
-    def process_prompts(self, metadata, image_output_dir):
-        logger.debug(f"get metadata {metadata}")
-        
-        if os.path.isfile(metadata):
-            with open(metadata, encoding="utf-8") as f:
-                prompts = json.load(f)  # {"k1":"prompt1", ...}
-        elif isinstance(metadata, str):
-            prompts = json.loads(metadata)
-        else:
-            raise "not str or file like"
-        
-        
-        Path(image_output_dir).mkdir(parents=True, exist_ok=True)
+    def process_prompts(self, metadata):
+        logger.info(f"json prompt processor: {metadata}")
+        prompts = load_json(metadata)
 
-        pending = {}
         prompt_contents = []
+        metadata = []
         for key, prompt in prompts.items():
-            img_path = Path(image_output_dir) / f"{key}.png"
-            pending[key] = str(img_path)
             prompt_contents.append(prompt)
+            metadata.append(f"{key}:{prompt}")
 
-        # 4) 元数据 json
-        meta_json = json.dumps(pending, ensure_ascii=False, indent=2)
-        return "\n".join(prompt_contents), meta_json
-        
+        return "\n".join(prompt_contents),"\n".join(metadata)
+         
 def run_all_tests():
     # . JsonParser
     jp = JsonParser()

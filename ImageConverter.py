@@ -31,8 +31,8 @@ class SaveImage:
             "hidden": {"prompt": "PROMPT", "extra_pnginfo": "EXTRA_PNGINFO"},
         }
 
-    RETURN_TYPES = ("STRING")
-    RETURN_NAMES = ("output")
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("output",)
     FUNCTION = "save_images"
     OUTPUT_NODE = True
     CATEGORY = "SaveImage"
@@ -71,7 +71,7 @@ class SaveImage:
         out_dir = folder_paths.get_output_directory()
         
         results = {}
-        for idx, image in enumerate(images):
+        for _, image in enumerate(images):
             img_idx = merged_metadata.get("idx", 0) + 1
             
             full_out, filename, _, subfolder, prefix = folder_paths.get_save_image_path(
@@ -100,13 +100,13 @@ class SaveImage:
             img.save(png_path, pnginfo=metadata, compress_level=self.compress_level)
 
             if img_idx < len(caption_list):
-                cap = caption_list[img_idx] is not None
+                cap = caption_list[img_idx]
                 if cap in label_metadata:
                     results[label_metadata[cap]] = png_path
                 else:
-                    results[cap] = png_path
+                    results[img_idx] = png_path
             else:
-                results[idx] = png_path
+                results[img_idx] = png_path
             
             results.setdefault("idx", img_idx)
 

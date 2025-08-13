@@ -3,8 +3,8 @@ class PromptTemplateText:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "characters": ("STRING", {"multiline": True, "default": "persion1\npersion2\persion3"}),
-                "template": ("STRING", {"multiline": False, "default": "[img%index%] {%PERSON%}"}),
+                "characters": ("STRING", {"multiline": True, "default": "persion1\npersion2\npersion3"}),
+                "template": ("STRING", {"multiline": False, "default": "[img%index%]:%PERSON%"}),
             }
         }
 
@@ -24,6 +24,6 @@ class PromptTemplateText:
         if not parts:
             return ("",)
 
-        result = "Character references:\n" + "\n".join(parts)
+        result = "Character references:\n" + "\n".join(parts)+"\n"
         return (result,)
 

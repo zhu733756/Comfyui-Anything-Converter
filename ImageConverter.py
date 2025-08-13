@@ -111,8 +111,8 @@ class LoadImageTextSetFromMetadata:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "character2prompt_path": ("STRING", {"default": "character2prompt.json"}),
-                "character2img_path": ("STRING", {"default": "character2img.json"}),
+                "character2prompt_path": ("STRING", {"default": "output/novels/character2prompt.json"}),
+                "character2img_path": ("STRING", {"default": "output/metadata/metadata.json"}),
             },
             "optional": {
                 "resize_method": (["None", "Stretch", "Crop", "Pad"], {"default": "None"}),
@@ -203,8 +203,7 @@ class LoadImageTextSetFromMetadata:
     @classmethod
     def IS_CHANGED(cls, character2prompt_path, character2img_path, **kw):
         h = hashlib.sha256()
-        for name in (character2prompt_path, character2img_path):
-            path = os.path.join(folder_paths.get_input_directory(), name)
+        for path in (character2prompt_path, character2img_path):
             if os.path.isfile(path):
                 with open(path, "rb") as f:
                     h.update(f.read())
@@ -212,8 +211,7 @@ class LoadImageTextSetFromMetadata:
 
     @classmethod
     def VALIDATE_INPUTS(cls, character2prompt_path, character2img_path, **kw):
-        for name in (character2prompt_path, character2img_path):
-            path = os.path.join(folder_paths.get_input_directory(), name)
+        for path in (character2prompt_path, character2img_path):
             if not os.path.isfile(path):
-                return f"File not found: {name}"
+                return f"File not found: {path}"
         return True

@@ -2,7 +2,7 @@ import os
 import json
 import numpy as np
 from PIL import Image, PngImagePlugin
-from utils import load_json, logger
+from .utils import load_json, logger
 from pathlib import Path
 import folder_paths
 from comfy.cli_args import args

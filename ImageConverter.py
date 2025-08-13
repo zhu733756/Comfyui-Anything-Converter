@@ -131,7 +131,8 @@ class LoadImageTextSetFromMetadata:
         char2prompt = load_json(character2prompt_path)
         char2imgs = load_json(character2img_path)
         
-        logger.info(f"get metadata: {char2prompt}; {char2imgs}")
+        logger.info(f"get char2prompt metadata: {char2prompt}")
+        logger.info(f"get char2imgs metadata: {char2imgs}")
 
         # 2. 拼路径 & 提示词
         image_paths, captions = [], []
@@ -159,7 +160,7 @@ class LoadImageTextSetFromMetadata:
                 conds.append(clip.encode_from_tokens_scheduled(clip.tokenize(cap)))
 
         logger.info(f"Loaded {len(output_tensor)} images / {len(conds)} captions.")
-        return (output_tensor, conds)
+        return (output_tensor, conds, "\n".join(captions))
     
     def _load(self, image_files, resize_method="None", w=None, h=None):
         """Utility function to load and process a list of images.

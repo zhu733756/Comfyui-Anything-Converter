@@ -108,9 +108,9 @@ class SaveImage:
             png_name = f"{base_file}.png"
             png_path = os.path.join(full_out, png_name)
             merged_metadata[prompt_key] = png_path
-            merged_metadata["idx"] = img_idx  
+            merged_metadata["idx"] = next_img_idx  
             
-            logger.info(f"image{img_idx} saved to {png_path}, prompt key: {prompt_key}")
+            logger.info(f"image{next_img_idx} saved to {png_path}, prompt key: {prompt_key}")
             img.save(png_path, pnginfo=metadata, compress_level=self.compress_level)
 
         with open(self.output_metadata, "w") as fb:

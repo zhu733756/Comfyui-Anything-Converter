@@ -60,7 +60,7 @@ class SaveImage:
             while len(caption_list) < len(images):
                 caption_list.append(None)
                 
-        logger.info(f"get images {len(images)}, labels: {labels}, captions: {caption}")
+        logger.info(f"get images {len(images)}, labels: {labels}, captions: {len(caption_list)}")
                 
         label_metadata = {}
         if labels is not None:
@@ -72,7 +72,7 @@ class SaveImage:
         
         results = {}
         for _, image in enumerate(images):
-            img_idx = merged_metadata.get("idx", 0) + 1
+            img_idx = merged_metadata.get("idx", -1) + 1
             
             full_out, filename, _, subfolder, prefix = folder_paths.get_save_image_path(
                 filename_prefix, out_dir, image.shape[1], image.shape[0]

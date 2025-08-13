@@ -132,25 +132,29 @@ class JsonPromptProcessor:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "metadata": ("STRING", {"multiline": False})
+                "metadata": ("STRING", {"multiline": False}),
+                "fixed": ("STRING", {"tooltip": "the prompt to be fixed and not generate."}),
             }
         }
 
-    RETURN_TYPES = ("STRING", "STRING")
-    RETURN_NAMES = ("prompts.txt", "metadata.txt")
+    RETURN_TYPES = ("STRING", "STRING",)
+    RETURN_NAMES = ("prompts.txt", "metadata.txt",)
     FUNCTION = "process_prompts"
     CATEGORY = "JsonPromptProcessor"
 
-    def process_prompts(self, metadata):
+    def process_prompts(self, metadata, fixed):
         logger.info(f"json prompt processor: {metadata}")
         prompts = load_json(metadata)
+        fixed_list = set(e for e in load_content(fixed).split(",") if fixed)
 
         prompt_contents = []
         metadata = []
         for key, prompt in prompts.items():
-            prompt_contents.append(prompt)
-            metadata.append(f"{key}:{prompt}")
-
+            if key in fixed_list:
+                metadata.append(f"{key}:{prompt}:fixed")
+            else:
+                metadata.append(f"{key}:{prompt}:no-fixed")
+                prompt_contents.append(prompt)
         return "\n".join(prompt_contents),"\n".join(metadata)
          
 def run_all_tests():

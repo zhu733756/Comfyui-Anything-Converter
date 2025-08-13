@@ -2,7 +2,7 @@ import os
 import json
 import numpy as np
 from PIL import Image, PngImagePlugin
-from .utils import load_json, logger
+from .utils import load_json, load_content, logger
 from pathlib import Path
 import folder_paths
 from comfy.cli_args import args
@@ -13,6 +13,7 @@ class SaveImage:
         self.type = "output"
         self.compress_level = 4
         self.output_metadata="output/metadata/metadata.json"
+        self.caption_list = []
         if os.path.exists(self.output_metadata):
             os.remove(self.output_metadata)
         Path(self.output_metadata).parent.mkdir(parents=True, exist_ok=True)
@@ -47,36 +48,50 @@ class SaveImage:
                 result[k] = list(set(result[k] + v))
             else:
                 result[k] = v
-        return result          
+        return result 
+    
+    def get_prompt_key(self, label_metadata, img_idx):
+        if 0<= img_idx-1 < len(self.caption_list):
+            cap = self.caption_list[img_idx-1]
+            if isinstance(cap, str):
+                prompt_key, fixed = label_metadata.get(cap.strip(), ("", "no-fixed"))
+                if fixed == "fixed":
+                    # skip this png
+                    return self.get_prompt_key(label_metadata, img_idx+1)
+                else:
+                    return prompt_key, img_idx
+        
+        return f"{img_idx}",img_idx
+                 
 
     def save_images(self, images, filename_prefix="ComfyUI" ,
                     prompt=None, extra_pnginfo=None, caption=None, labels=None):
         merged_metadata = load_json(self.output_metadata)
 
         if caption is None:
-            caption_list = [None] * len(images)
+            self.caption_list = [None] * len(images)
         else:
-            caption_list = [c.strip() for c in str(caption).splitlines()]
-            while len(caption_list) < len(images):
-                caption_list.append(None)
+            self.caption_list = [c.strip() for c in str(caption).splitlines()]
+            while len(self.caption_list) < len(images):
+                self.caption_list.append(None)
                 
-        logger.info(f"get images {len(images)}, labels: {labels}, captions: {len(caption_list)}")
+        logger.info(f"get images {len(images)}, labels: {labels}, captions: {len(self.caption_list)}")
                 
         label_metadata = {}
         if labels is not None:
-            loaded = load_json(labels) 
-            label_metadata= {str(v).strip():k for k,v in loaded.items()}
-            
+            label_metadata = {x.split(":")[1]:tuple(x.split(":")[0], x.split(":")[2]) for x in str(load_content(labels)).splitlines() if len(x.split(":"))>=3}
+        if not label_metadata:
+            raise "label metadata not given"
         
         out_dir = folder_paths.get_output_directory()
         
-        results = {}
         for _, image in enumerate(images):
-            img_idx = merged_metadata.get("idx", -1) + 1
-            
-            full_out, filename, _, subfolder, prefix = folder_paths.get_save_image_path(
+            full_out, filename, _, _, _ = folder_paths.get_save_image_path(
                 filename_prefix, out_dir, image.shape[1], image.shape[0]
             )
+            
+            img_idx = (merged_metadata.get("idx", 0) + 1) % len(self.caption_list)
+            prompt_key, img_idx = self.get_prompt_key(label_metadata=label_metadata, img_idx=img_idx)
 
             base_file = f"{filename}_{img_idx:05}"
 
@@ -93,24 +108,13 @@ class SaveImage:
                         metadata.add_text(k, json.dumps(v))
 
             png_name = f"{base_file}.png"
-            png_path = os.path.join(full_out, png_name)   
+            png_path = os.path.join(full_out, png_name)
+            merged_metadata[prompt_key] = png_path
+            merged_metadata["idx"] = img_idx  
+            
+            logger.info(f"image{img_idx} saved to {png_path}, prompt key: {prompt_key}")
             img.save(png_path, pnginfo=metadata, compress_level=self.compress_level)
 
-            if img_idx < len(caption_list):
-                cap = caption_list[img_idx]
-                if isinstance(cap, str):
-                    cap = cap.strip()
-                ele = label_metadata.get(cap, img_idx)
-                logger.info(f"image{img_idx} saved to {png_path}, cap {cap}")
-                results[ele] = png_path
-            else:
-                logger.info(f"image{img_idx} saved to {png_path}, no cap")
-                results[img_idx] = png_path
-            
-            results.setdefault("idx", img_idx)
-
-        # 返回 json 字符串，方便下游节点继续用
-        results = self._deep_merge(merged_metadata, results)
         with open(self.output_metadata, "w") as fb:
-            json.dump(results, fb, ensure_ascii=False)
-        return json.dumps(results)
+            json.dump(merged_metadata, fb, ensure_ascii=False)
+        return json.dumps(merged_metadata)

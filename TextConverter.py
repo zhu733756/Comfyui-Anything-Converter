@@ -24,6 +24,6 @@ class PromptTemplateText:
         if not parts:
             return ("",)
 
-        result = "Character references:\n" + "\n".join(parts)+"\n"
+        result = "Character references:" + ",".join(parts)+ ";"
         return (result,)
 

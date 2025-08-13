@@ -75,8 +75,6 @@ class SaveImage:
             while len(self.caption_list) < len(images):
                 self.caption_list.append(None)
                 
-        logger.info(f"get images {len(images)}, labels: {labels}, captions: {len(self.caption_list)}")
-                
         label_metadata = {}
         if labels is not None:
             label_metadata = {x.split(":")[1]:(x.split(":")[0], x.split(":")[2]) for x in str(load_content(labels)).splitlines() if len(x.split(":"))>=3}
@@ -90,10 +88,10 @@ class SaveImage:
                 filename_prefix, out_dir, image.shape[1], image.shape[0]
             )
             
-            img_idx = (merged_metadata.get("idx", 0) + 1) % len(self.caption_list)
-            prompt_key, img_idx = self.get_prompt_key(label_metadata=label_metadata, img_idx=img_idx)
+            next_img_idx = (merged_metadata.get("idx", 0)) % len(self.caption_list) + 1
+            prompt_key, next_img_idx = self.get_prompt_key(label_metadata=label_metadata, img_idx=next_img_idx)
 
-            base_file = f"{filename}_{img_idx:05}"
+            base_file = f"{filename}_{next_img_idx:05}"
 
             i = 255.0 * image.cpu().numpy()
             img = Image.fromarray(np.clip(i, 0, 255).astype(np.uint8))

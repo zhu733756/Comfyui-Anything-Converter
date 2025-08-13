@@ -67,7 +67,7 @@ class SaveImage:
         if labels is None:
             raise "metadata like key:prompt:fixed/no-fixed must given"
         
-        out_dir = folder_paths.get_output_directory()
+        out_dir = folder_paths.base_path
         merged_metadata = load_json(self.output_metadata)
         label_metadata = [x.strip() for x in str(load_content(labels)).splitlines() if len(x.strip().split(":"))>=3]
   
@@ -128,8 +128,9 @@ class LoadImageTextSetFromMetadata:
 
     # ---------- 主逻辑 ----------
     def load(self, character2prompt_path, character2img_path, resize_method="None", width=-1, height=-1):
-        char2prompt = load_json(character2prompt_path)
-        char2imgs   = load_json(character2img_path)
+        out_dir = folder_paths.base_path
+        char2prompt = load_json(os.path.join(out_dir, character2prompt_path))
+        char2imgs   = load_json(os.path.join(out_dir, character2img_path))
 
         # 2. 拼路径 & 提示词
         image_paths, captions = [], []
@@ -201,16 +202,20 @@ class LoadImageTextSetFromMetadata:
 
     @classmethod
     def IS_CHANGED(cls, character2prompt_path, character2img_path, **kw):
+        out_dir = folder_paths.base_path
         h = hashlib.sha256()
         for path in (character2prompt_path, character2img_path):
-            if os.path.exists(path):
-                with open(path, "rb") as f:
+            npw = os.path.join(out_dir, path)
+            if os.path.isfile(npw):
+                with open(npw, "rb") as f:
                     h.update(f.read())
         return h.hexdigest()
 
     @classmethod
     def VALIDATE_INPUTS(cls, character2prompt_path, character2img_path, **kw):
+        out_dir = folder_paths.base_path
         for path in (character2prompt_path, character2img_path):
-            if not os.path.exists(path):
-                return f"File not found: {path}"
+            npw = os.path.join(out_dir, path)
+            if not os.path.isfile(npw):
+                return f"File not found: {npw}"
         return True

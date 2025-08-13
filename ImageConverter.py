@@ -1,10 +1,12 @@
 import os
 import json
 import numpy as np
+import torch
 from PIL import Image, PngImagePlugin
 from .utils import load_json, load_content, logger
 from pathlib import Path
 import folder_paths
+import node_helpers
 from comfy.cli_args import args
 
 
@@ -101,3 +103,97 @@ class SaveImage:
         with open(self.output_metadata, "w") as fb:
             json.dump(merged_metadata, fb, ensure_ascii=False)
         return json.dumps(merged_metadata)
+    
+
+class LoadImageTextSetFromMetadata:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "character2prompt_path": ("STRING", {"default": "character2prompt.json"}),
+                "character2img_path": ("STRING", {"default": "character2img.json"}),
+                "clip": ("CLIP",),
+            },
+            "optional": {
+                "resize_method": (["None", "Stretch", "Crop", "Pad"], {"default": "None"}),
+                "width": ("INT", {"default": -1, "min": -1, "max": 10000, "step": 1}),
+                "height": ("INT", {"default": -1, "min": -1, "max": 10000, "step": 1}),
+            },
+        }
+
+    RETURN_TYPES = ("IMAGE", "CONDITIONING", "STRING")
+    RETURN_NAMES = ("IMAGE", "CONDITIONING", "CHARS")
+    FUNCTION = "load"
+    CATEGORY = "LoadImage"
+    DESCRIPTION = "Load images & prompts from two JSON files."
+
+    def load(self, character2prompt_path, character2img_path, clip, resize_method="None", width=-1, height=-1):
+        char2prompt = load_json(character2prompt_path)
+        char2imgs = load_json(character2img_path)
+
+        # 2. 拼路径 & 提示词
+        image_paths, captions = [], []
+        for char, img in char2imgs.items():
+            image_paths.append(img)
+            captions.append(char2prompt.get(char, ""))
+
+        # 3. 载入图片
+        output_tensor = self._load(image_paths, resize_method,
+                                          width if width != -1 else None,
+                                          height if height != -1 else None)
+
+        # 4. 编码提示词
+        conds = []
+        empty = clip.encode_from_tokens_scheduled(clip.tokenize(""))
+        for cap in captions:
+            if not cap:
+                conds.append(empty)
+            else:
+                conds.append(clip.encode_from_tokens_scheduled(clip.tokenize(cap)))
+
+        logger.info(f"Loaded {len(output_tensor)} images / {len(conds)} captions.")
+        return (output_tensor, conds)
+    
+    def _load(self, image_files, resize_method="None", w=None, h=None):
+        """Utility function to load and process a list of images.
+
+        Args:
+            image_files: List of image filenames
+            resize_method: How to handle images of different sizes ("None", "Stretch", "Crop", "Pad")
+
+        Returns:
+            torch.Tensor: Batch of processed images
+        """
+        if not image_files:
+            raise ValueError("No valid images found in input")
+
+        output_images = []
+
+        for image_path in image_files:
+            img = node_helpers.pillow(Image.open, image_path)
+
+            if img.mode == "I":
+                img = img.point(lambda i: i * (1 / 255))
+            img = img.convert("RGB")
+
+            if w is None and h is None:
+                w, h = img.size[0], img.size[1]
+
+            # Resize image to first image
+            if img.size[0] != w or img.size[1] != h:
+                if resize_method == "Stretch":
+                    img = img.resize((w, h), Image.Resampling.LANCZOS)
+                elif resize_method == "Crop":
+                    img = img.crop((0, 0, w, h))
+                elif resize_method == "Pad":
+                    img = img.resize((w, h), Image.Resampling.LANCZOS)
+                elif resize_method == "None":
+                    raise ValueError(
+                        "Your input image size does not match the first image in the dataset. Either select a valid resize method or use the same size for all images."
+                    )
+
+            img_array = np.array(img).astype(np.float32) / 255.0
+            img_tensor = torch.from_numpy(img_array)[None,]
+            output_images.append(img_tensor)
+
+        return torch.cat(output_images, dim=0)

@@ -130,12 +130,19 @@ class LoadImageTextSetFromMetadata:
     def load(self, character2prompt_path, character2img_path, clip, resize_method="None", width=-1, height=-1):
         char2prompt = load_json(character2prompt_path)
         char2imgs = load_json(character2img_path)
+        
+        logger.info(f"get metadata: {char2prompt}; {char2imgs}")
 
         # 2. 拼路径 & 提示词
         image_paths, captions = [], []
         for char, img in char2imgs.items():
-            image_paths.append(img)
-            captions.append(char2prompt.get(char, ""))
+            if char == "idx":
+                continue
+            if os.path.exists(img):
+                image_paths.append(img)
+                captions.append(char2prompt.get(char, ""))
+            else:
+                logger.warning(f'image {img} not exists')
 
         # 3. 载入图片
         output_tensor = self._load(image_paths, resize_method,

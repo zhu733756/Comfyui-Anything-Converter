@@ -134,7 +134,7 @@ class LoadImageTextSetFromMetadata:
         # 2. 拼路径 & 提示词
         image_paths, captions = [], []
         for char, img_path in char2imgs.items():
-            if char == "idx" or not os.path.isfile(img_path):
+            if char == "idx" or not os.path.exists(img_path):
                 continue
             image_paths.append(img_path)
             captions.append(char2prompt.get(char, ""))
@@ -199,12 +199,11 @@ class LoadImageTextSetFromMetadata:
         else:
             raise ValueError("Image sizes do not match and resize_method='None'.")
 
-    # ---------- 变更检测 ----------
     @classmethod
     def IS_CHANGED(cls, character2prompt_path, character2img_path, **kw):
         h = hashlib.sha256()
         for path in (character2prompt_path, character2img_path):
-            if os.path.isfile(path):
+            if os.path.exists(path):
                 with open(path, "rb") as f:
                     h.update(f.read())
         return h.hexdigest()
@@ -212,6 +211,6 @@ class LoadImageTextSetFromMetadata:
     @classmethod
     def VALIDATE_INPUTS(cls, character2prompt_path, character2img_path, **kw):
         for path in (character2prompt_path, character2img_path):
-            if not os.path.isfile(path):
+            if not os.path.exists(path):
                 return f"File not found: {path}"
         return True

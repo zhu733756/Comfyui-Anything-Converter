@@ -48,12 +48,14 @@ class JsonCombiner:
         if indent <= 0 or indent is None:
             indent = None
         if output_mode == "file":
+            import folder_paths
             if not output_path.strip():
                 fd, output_path = tempfile.mkstemp(suffix=".json", text=True)
                 os.close(fd)
             else:
                 Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
+            output_path = os.path.join(folder_paths.base_path, output_path)
             with open(output_path, "w", encoding="utf-8") as f:
                 json.dump(merged, f, ensure_ascii=False, separators=(',', ':') if indent is None else (',', ': '))
             return (output_path,)

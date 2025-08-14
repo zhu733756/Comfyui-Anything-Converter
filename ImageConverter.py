@@ -15,19 +15,17 @@ class SaveImage:
     def __init__(self):
         self.type = "output"
         self.compress_level = 4
-        self.output_metadata="output/metadata/metadata.json"
-        if not os.path.exists(self.output_metadata):
-            Path(self.output_metadata).parent.mkdir(parents=True, exist_ok=True)
 
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
                 "images": ("IMAGE", {"tooltip": "The images to save."}),
+                "labels": ("STRING", {"forceInput": True, "tooltip": "json str mapping for caption"}),
                 "filename_prefix": ("STRING", {"default": "ComfyUI", "tooltip": "File name prefix, supports %date% etc."}),
             },
             "optional": {
-                "labels": ("STRING", {"forceInput": True, "tooltip": "json str mapping for caption"}),
+                "metadata_store_path": ("STRING", {"default": "output/metadata/metadata.json"})
             },
             "hidden": {"prompt": "PROMPT", "extra_pnginfo": "EXTRA_PNGINFO"},
         }
@@ -62,13 +60,16 @@ class SaveImage:
         return "", -1
                  
 
-    def save_images(self, images, filename_prefix="ComfyUI" ,
-                    prompt=None, extra_pnginfo=None,  labels=None):
-        if labels is None:
-            raise "metadata like key:prompt:fixed/no-fixed must given"
+    def save_images(self, images, labels, filename_prefix="ComfyUI" ,
+                    prompt=None, extra_pnginfo=None, metadata_store_path="output/metadata/metadata.json"):
+        if not labels or str(labels).count(":") < 3:
+            raise "labels like key:prompt:fixed/no-fixed must given"
+        
+        if not os.path.exists(metadata_store_path):
+            Path(metadata_store_path).parent.mkdir(parents=True, exist_ok=True)
         
         out_dir = folder_paths.base_path
-        merged_metadata = load_json(self.output_metadata)
+        merged_metadata = load_json(metadata_store_path)
         label_metadata = [x.strip() for x in str(load_content(labels)).splitlines() if len(x.strip().split(":"))>=3]
   
         for _, image in enumerate(images):
@@ -101,8 +102,9 @@ class SaveImage:
             logger.info(f"image{next_img_idx} saved to {png_path}, prompt key: {prompt_key}")
             img.save(png_path, pnginfo=metadata, compress_level=self.compress_level)
 
-        with open(self.output_metadata, "w") as fb:
+        with open(metadata_store_path, "w") as fb:
             json.dump(merged_metadata, fb, ensure_ascii=False)
+            
         return json.dumps(merged_metadata)
 
 

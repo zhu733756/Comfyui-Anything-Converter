@@ -132,7 +132,7 @@ class JsonPromptProcessor:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "metadata": ("STRING", {"multiline": False}),
+                "metadata": ("STRING", {"multiline": False, "default": "output/novels/character2prompt.json"}),
                 "fixed": ("STRING", {"tooltip": "the prompt to be fixed and not generate."}),
             }
         }

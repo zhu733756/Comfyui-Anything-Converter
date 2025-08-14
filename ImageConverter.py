@@ -121,8 +121,8 @@ class LoadImageTextSetFromMetadata:
             },
         }
 
-    RETURN_TYPES = ("IMAGE", "MASK", "STRING")
-    RETURN_NAMES = ("IMAGE", "MASK", "CAPTIONS")
+    RETURN_TYPES = ("IMAGE", "MASK", "STRING", "STRING")
+    RETURN_NAMES = ("IMAGE", "MASK", "prompts", "labels")
     FUNCTION = "load"
     CATEGORY = "image"
 
@@ -134,11 +134,15 @@ class LoadImageTextSetFromMetadata:
 
         # 2. 拼路径 & 提示词
         image_paths, captions = [], []
+        labels = []
+        index = 1
         for char, img_path in char2imgs.items():
             if char == "idx" or not os.path.exists(img_path):
                 continue
+            labels[char] = f'image{index}'
             image_paths.append(img_path)
             captions.append(char2prompt.get(char, ""))
+            index += 1
 
         if not image_paths:
             raise RuntimeError("No valid images found in metadata.")
@@ -147,7 +151,7 @@ class LoadImageTextSetFromMetadata:
                                           width  if width  != -1 else None,
                                           height if height != -1 else None)
 
-        return (images, masks, "\n".join(captions))
+        return (images, masks, "\n".join(captions),json.dumps(labels))
 
     # ---------- 载入图片 ----------
     def _load_images(self, paths, resize_method, w, h):
@@ -198,7 +202,7 @@ class LoadImageTextSetFromMetadata:
             new_img.paste(img, ((w - img.width) // 2, (h - img.height) // 2))
             return new_img
         else:
-            raise ValueError("Image sizes do not match and resize_method='None'.")
+            return img
 
     @classmethod
     def IS_CHANGED(cls, character2prompt_path, character2img_path, **kw):

@@ -3,6 +3,7 @@ class PromptTemplateText:
     def INPUT_TYPES(cls):
         return {
             "required": {
+                "prepend_text": ("STRING", {"default": "Character references:"}),
                 "characters": ("STRING", {"multiline": True, "default": "persion1\npersion2\npersion3"}),
                 "template": ("STRING", {"multiline": False, "default": "[img%index%]:%PERSON%"}),
             }
@@ -13,7 +14,7 @@ class PromptTemplateText:
     FUNCTION = "convert"
     CATEGORY = "TextConverter"
 
-    def convert(self, characters: str, template: str):
+    def convert(self, prepend_text: str, characters: str, template: str):
         lines = [ln.strip() for ln in characters.splitlines() if ln.strip()]
         parts = []
         for idx, person in enumerate(lines):
@@ -24,6 +25,6 @@ class PromptTemplateText:
         if not parts:
             return ("",)
 
-        result = "Character references:" + ",".join(parts)+ ";"
+        result = prepend_text + ",".join(parts)+ ", "
         return (result,)
 

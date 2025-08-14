@@ -15,8 +15,6 @@ class JsonCombiner:
             "required": {
                 "json_a": ("STRING", {"multiline": True, "default": ""}),
                 "json_b": ("STRING", {"multiline": True, "default": ""}),
-                "json_a_mode": (["file", "string"], {"default": "string"}),
-                "json_b_mode": (["file", "string"], {"default": "string"}),
                 "merge_strategy": (["deep_merge", "a_first", "b_first", "value_ab"], {"default": "deep_merge"}),
             },
             "optional": {
@@ -31,9 +29,9 @@ class JsonCombiner:
     FUNCTION = "combine"
     CATEGORY = "FileConverter"
 
-    def combine(self, json_a, json_b, json_a_mode, json_b_mode, merge_strategy, indent=None, output_mode="", output_path=""):
-        a = load_json(json_a, json_a_mode)
-        b = load_json(json_b, json_b_mode)
+    def combine(self, json_a, json_b, merge_strategy, indent=None, output_mode="", output_path=""):
+        a = load_json(json_a)
+        b = load_json(json_b)
 
         if merge_strategy == "deep_merge":
             merged = self._deep_merge(a, b)

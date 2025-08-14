@@ -136,7 +136,7 @@ class LoadImageTextSetFromMetadata:
 
         # 2. 拼路径 & 提示词
         image_paths, captions = [], []
-        labels = []
+        labels = {}
         index = 1
         for char, img_path in char2imgs.items():
             if char == "idx" or not os.path.exists(img_path):

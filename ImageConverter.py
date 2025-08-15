@@ -108,7 +108,7 @@ class SaveImage:
         return json.dumps(merged_metadata)
 
 
-class LoadImageTextSetFromMetadata:
+class LoadImage2Kontext:
     @classmethod
     def INPUT_TYPES(cls):
         return {
@@ -156,36 +156,134 @@ class LoadImageTextSetFromMetadata:
         return (images, masks, "\n".join(captions),json.dumps(labels))
 
     # ---------- 载入图片 ----------
-    def _load_images(self, paths, resize_method, w, h):
-        out_imgs, out_masks = [], []
-        target_w = target_h = None
+    def _load_images(self,
+                     paths,
+                     resize_method="None",
+                     w=None, h=None,
+                     match_image_size=True,
+                     spacing_width=0,
+                     spacing_color="white"):
+        """
+        内部参考 ImageStitch 实现：
+        1. 统一尺寸（match_image_size=True 时）
+        2. 按 resize_method 做 Stretch / Crop / Pad
+        3. 支持 spacing
+        返回 (batched_images, batched_masks)  NHWC
+        """
+        import comfy.utils
+        color_map = {"white": 1.0, "black": 0.0,
+                     "red": (1.0, 0.0, 0.0),
+                     "green": (0.0, 1.0, 0.0),
+                     "blue": (0.0, 0.0, 1.0)}
 
-        for p in paths:
-            img = node_helpers.pillow(Image.open, p)
+        def load_single(path):
+            img = node_helpers.pillow(Image.open, path)
             img = node_helpers.pillow(ImageOps.exif_transpose, img)
-
-            # 16-bit PNG -> 8-bit
             if img.mode == 'I':
                 img = img.point(lambda i: i * (1 / 65535))
 
-            # 统一 RGB
-            img = img.convert("RGB")
+            # 转成 RGBA，方便后面抽 mask
+            img_rgba = img.convert("RGBA")
+            img_rgb  = img_rgba.convert("RGB")
 
-            # 首张尺寸
-            if target_w is None:
-                target_w, target_h = img.size
+            # 抽 alpha -> mask
+            alpha = np.array(img_rgba.split()[-1]).astype(np.float32) / 255.0
+            mask  = 1. - torch.from_numpy(alpha)  # 0 表示不透明
 
-            # 缩放
-            if (img.width, img.height) != (target_w, target_h):
-                img = self._resize(img, target_w, target_h, resize_method)
+            np_rgb = np.array(img_rgb).astype(np.float32) / 255.0
+            tensor = torch.from_numpy(np_rgb)[None,]  # 1HWC
+            return tensor, mask.unsqueeze(0)          # 1HW
 
-            # 转 Tensor
-            np_img = np.array(img).astype(np.float32) / 255.0
-            tensor = torch.from_numpy(np_img)[None,]
-            out_imgs.append(tensor)
-            out_masks.append(torch.zeros((64, 64), dtype=torch.float32))  # 占位空 mask
+        # 逐张加载
+        images, masks = [], []
+        for p in paths:
+            im, mk = load_single(p)
+            images.append(im)
+            masks.append(mk)
 
-        return torch.cat(out_imgs, dim=0), torch.stack(out_masks, dim=0)
+        # 以第一张为基准
+        target = images[0]
+        target_h, target_w = target.shape[1:3]
+
+        # 统一尺寸开关
+        if match_image_size:
+            for idx, (img, mk) in enumerate(zip(images, masks)):
+                h_cur, w_cur = img.shape[1:3]
+                if (w_cur, h_cur) != (target_w, target_h):
+                    # 计算目标尺寸
+                    aspect = w_cur / h_cur
+                    if w is not None and h is not None:
+                        new_w, new_h = w, h
+                    else:
+                        if w is not None:
+                            new_w, new_h = w, int(w / aspect)
+                        elif h is not None:
+                            new_w, new_h = int(h * aspect), h
+                        else:
+                            new_w, new_h = target_w, target_h
+
+                    # 执行缩放
+                    img = comfy.utils.common_upscale(
+                        img.movedim(-1, 1), new_w, new_h, "lanczos", "disabled"
+                    ).movedim(1, -1)
+                    mk = comfy.utils.common_upscale(
+                        mk.unsqueeze(1), new_w, new_h, "lanczos", "disabled"
+                    ).squeeze(1)
+
+                    # 根据 resize_method 对齐到 target
+                    pad_w = target_w - new_w
+                    pad_h = target_h - new_h
+                    if resize_method == "Stretch":
+                        img = comfy.utils.common_upscale(
+                            img.movedim(-1, 1), target_w, target_h, "lanczos", "disabled"
+                        ).movedim(1, -1)
+                        mk = comfy.utils.common_upscale(
+                            mk.unsqueeze(1), target_w, target_h, "lanczos", "disabled"
+                        ).squeeze(1)
+                    elif resize_method == "Crop":
+                        pad_left = max(0, -pad_w) // 2
+                        pad_top  = max(0, -pad_h) // 2
+                        img = img[:, pad_top:pad_top + target_h, pad_left:pad_left + target_w, :]
+                        mk  = mk[:, pad_top:pad_top + target_h, pad_left:pad_left + target_w]
+                    elif resize_method == "Pad":
+                        pad_left = max(0, pad_w) // 2
+                        pad_top  = max(0, pad_h) // 2
+                        img = torch.nn.functional.pad(
+                            img, (0, 0, pad_left, pad_w - pad_left,
+                                  pad_top, pad_h - pad_top),
+                            mode='constant', value=0.0)
+                        mk = torch.nn.functional.pad(
+                            mk, (pad_left, pad_w - pad_left,
+                                 pad_top, pad_h - pad_top),
+                            mode='constant', value=0.0)
+                    elif resize_method == "None":
+                        if (new_w, new_h) != (target_w, target_h):
+                            raise ValueError("Image sizes mismatch and resize_method='None'.")
+
+                    images[idx] = img
+                    masks[idx]  = mk
+
+        # ---- spacing ----
+        if spacing_width > 0:
+            spacing_width = spacing_width + (spacing_width % 2)  # 偶数
+            color = color_map.get(spacing_color, 1.0)
+            spacing_rgb = torch.full((1, target_h, spacing_width, 3), color)
+            spacing_msk = torch.zeros((1, target_h, spacing_width))
+
+            out_imgs, out_msks = [], []
+            for idx, (img, msk) in enumerate(zip(images, masks)):
+                out_imgs.append(img)
+                out_msks.append(msk)
+                if idx < len(images) - 1:  # 最后一张后面不加
+                    out_imgs.append(spacing_rgb)
+                    out_msks.append(spacing_msk)
+            images = out_imgs
+            masks  = out_msks
+
+        # 拼成 batch
+        images = torch.cat(images, dim=0)  # NHWC
+        masks  = torch.cat(masks,  dim=0)  # NHW
+        return images, masks
 
     # ---------- 缩放 ----------
     @staticmethod

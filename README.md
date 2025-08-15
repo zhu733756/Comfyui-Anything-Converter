@@ -17,7 +17,7 @@ FileConverter:
 
 ImageCoverter:
 - **Save Image**：参考[ComfyUI-KJNodes: Save Image KJ](https://github.com/kijai/ComfyUI-KJNodes)实现，可以获取所有图片的路径
-- **Load Image**：参考[LoadImage](https://github.com/comfyanonymous/ComfyUI/blob/615eb52049df98cebdd67bc672b66dc059171d7c/nodes.py#L1626)实现，可以自定义元数据信息character2prompt.json和character2img.json
+- **Load Image**：参考[ImageStitch](https://github.com/comfyanonymous/ComfyUI/blob/e08ecfbd8a9deda8939b14d7f1ff7d7139f1a4ed/comfy_extras/nodes_images.py#L235)实现，可以自定义元数据信息character2prompt.json和character2img.json
 
 ### 安装
 
@@ -34,4 +34,4 @@ ImageCoverter:
 
 ### 贡献
 
-欢迎贡献代码或报告问题。请提交 Pull Request 或在 Issues 中提出您的问题。
+欢迎贡献代码或报告问题。请提交 Pull Request 或在 Issues 中提出您g的问题。

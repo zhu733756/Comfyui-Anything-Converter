@@ -1,6 +1,6 @@
 from .FileConverter import LineConverter, FileDictConverter, FileSplitter
 from .JsonConverter import JsonCombiner, JsonParser, JsonPromptProcessor
-from .ImageConverter import SaveImage, LoadImageTextSetFromMetadata
+from .ImageConverter import SaveImage, LoadImage2Kontext
 from .TextConverter import PromptTemplateText
 
 
@@ -13,7 +13,7 @@ NODE_CLASS_MAPPINGS = {
     "FileConverter.FileDictConverter": FileDictConverter,
     "FileConverter.FileSplitter": FileSplitter,
     "ImageCoverter.SaveImage": SaveImage,
-    "ImageCoverter.LoadImageTextSetFromMetadata": LoadImageTextSetFromMetadata,
+    "ImageCoverter.LoadImage2Kontext": LoadImage2Kontext,
     "TextConverter.PromptTemplateText": PromptTemplateText,
 }
 
@@ -25,7 +25,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FileConverter.FileDictConverter": "FileDictConverter",
     "FileConverter.FileSplitter": "FileSplitter",
     "ImageCoverter.SaveImage": "SaveImage",
-    "ImageCoverter.LoadImageTextSetFromMetadata": "LoadImageTextSetFromMetadata",
+    "ImageCoverter.LoadImage2Kontext": "LoadImage2Kontext",
     "TextConverter.PromptTemplateText": "PromptTemplateText",
 }
 

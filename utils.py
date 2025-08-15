@@ -32,12 +32,12 @@ def load_content(content):
     else:
         return content
     
-def load_content_strip(content):
+def load_content_strip(content, start, end):
     """加载输入内容"""
     if os.path.isfile(content.strip()):
         with open(content.strip(), "r", encoding="utf-8") as f:
-            return  "\n".join([line.strip() for line in f.readlines() if line.strip()])
+            return  "\n".join([line.strip() for line in f.readlines() if line.strip()][start:end])
     elif isinstance(content, str):
-        return content.strip()
+        return "\n".join([line.strip() for line in content.strip().splitlines() if line.strip()][start:end])
     else:
-        return content
+        raise "load content failed, not str or file"

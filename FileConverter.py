@@ -117,9 +117,7 @@ class FileDictConverter:
 
     def convert(self, input, dict_input, start=0, end = -1,output_mode="string", output_file=""):
         # 加载输入内容
-        input_content = load_content_strip(input)
-        if start != 0 or end != -1:
-            input_content = "\n".join([line for line in input_content[start:end] if line])
+        input_content = load_content_strip(input, start, end)
         
         # 加载替换字典
         replace_dict = load_json(dict_input)

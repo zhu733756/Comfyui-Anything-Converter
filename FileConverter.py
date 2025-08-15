@@ -3,7 +3,7 @@ import re
 import json
 import tempfile
 from pathlib import Path
-from .utils import load_json, load_content
+from .utils import load_json, load_content, load_content_strip
 
 class LineConverter:
     """
@@ -115,7 +115,7 @@ class FileDictConverter:
 
     def convert(self, input, dict_input, output_mode="string", output_file=""):
         # 加载输入内容
-        input_content = load_content(input)
+        input_content = load_content_strip(input)
         # 加载替换字典
         replace_dict = load_json(dict_input)
 

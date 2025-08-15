@@ -31,3 +31,13 @@ def load_content(content):
             return f.read()
     else:
         return content
+    
+def load_content_strip(content):
+    """加载输入内容"""
+    if os.path.isfile(content.strip()):
+        with open(content.strip(), "r", encoding="utf-8") as f:
+            return  "\n".join([line.strip() for line in f.readlines() if line.strip()])
+    elif isinstance(content, str):
+        return content.strip()
+    else:
+        return content

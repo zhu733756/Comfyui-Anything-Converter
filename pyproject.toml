@@ -1,0 +1,13 @@
+[project]
+name = "ComfyUI-Anything-Converter"
+description = "ComfyUI-Anything-Converter is a custom node extension designed for ComfyUI, providing JSON merging and text line conversion functionalities."
+version = "1.0.0"
+license = {file = "LICENSE"}
+
+[project.urls]
+Repository = "https://github.com/zhu733756/Comfyui-Anything-Converter"
+
+[tool.comfy]
+PublisherId = ""
+DisplayName = "ComfyUI-Anything-Converter"
+Icon = ""

@@ -101,6 +101,8 @@ class FileDictConverter:
             "required": {
                 "input": ("STRING", {"multiline": True, "default": ""}),
                 "dict_input": ("STRING", {"multiline": True, "default": ""}),
+                "start": ("INT", {"default": 0}),
+                "end": ("INT", {"default": -1}),
             },
             "optional": {
                 "output_mode": (["file", "string"], {"default": "string"}),
@@ -113,12 +115,14 @@ class FileDictConverter:
     FUNCTION = "convert"
     CATEGORY = "FileConverter"
 
-    def convert(self, input, dict_input, output_mode="string", output_file=""):
+    def convert(self, input, dict_input, start=0, end = -1,output_mode="string", output_file=""):
         # 加载输入内容
         input_content = load_content_strip(input)
+        if start != 0 or end != -1:
+            input_content = "\n".join([line for line in input_content[start:end] if line])
+        
         # 加载替换字典
         replace_dict = load_json(dict_input)
-
         # 替换逻辑
         for key, value in replace_dict.items():
             input_content = input_content.replace(key, value)

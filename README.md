@@ -34,4 +34,4 @@ ImageCoverter:
 
 ### 贡献
 
-欢迎贡献代码或报告问题。请提交 Pull Request 或在 Issues 中提出您g的问题。
+欢迎贡献代码或报告问题。请提交 Pull Request 或在 Issues 中提出您的问题。

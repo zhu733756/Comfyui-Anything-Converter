@@ -205,4 +205,4 @@ class LoadImage2Kontext:
             index += 1
           
         stacked = torch.cat(latent_list, dim=0)  # shape (N, C, H/8, W/8)
-        return (images, {"samples": stacked},  conditions,  "\n".join(captions), json.dumps(labels))
+        return (torch.cat(images, dim=0), {"samples": stacked},  conditions,  "\n".join(captions), json.dumps(labels))

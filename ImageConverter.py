@@ -183,7 +183,7 @@ class LoadImage2Kontext:
         if not conditions:
             raise ValueError("conditions must be given.")
 
-        images, captions,latent_list = [], []
+        images, captions,latent_list = [], [], []
         labels = {}
         index = 1
         for _, char in enumerate(sorted(char2img.keys()), 1):

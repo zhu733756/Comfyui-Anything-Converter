@@ -187,10 +187,10 @@ class LoadImage2Kontext:
         labels = {}
         index = 1
         for _, char in enumerate(sorted(char2img.keys()), 1):
+            img_path = char2img[char]
             if char == "idx" or not os.path.exists(img_path):
                 continue
             
-            img_path = char2img[char]
             labels[char] = f'the character in image{index}'
             captions.append(char2prompt.get(char, ""))
             

@@ -205,6 +205,5 @@ class LoadImage2Kontext:
             index += 1
         
         images_cat = torch.cat(images, dim=0)
-        latents = {"samples": latent } if latent else {},
         # shape (N, C, H/8, W/8)
-        return (images_cat,  latents, conditions,  "\n".join(captions), json.dumps(labels))
+        return (images_cat,  {"samples": latent } , conditions,  "\n".join(captions), json.dumps(labels))

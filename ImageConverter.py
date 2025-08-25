@@ -143,10 +143,10 @@ class LoadImage2Kontext:
             }
         }
 
-    RETURN_TYPES = ("LATENT", "CONDITIONING", "STRING", "STRING")
-    RETURN_NAMES = ("latents", "conditioning", "prompts", "metadata")
+    RETURN_TYPES = ("Image", "LATENT","CONDITIONING", "STRING", "STRING")
+    RETURN_NAMES = ("images", "latents", "conditioning", "prompts", "metadata")
     FUNCTION = "load_and_encode"
-    CATEGORY = "image/kontext"
+    CATEGORY = "LoadImage2Kontext"
 
     # ------------ 工具函数 ------------
     @staticmethod
@@ -183,7 +183,7 @@ class LoadImage2Kontext:
         if not conditions:
             raise ValueError("conditions must be given.")
 
-        captions,latent_list = [], []
+        images, captions,latent_list = [], []
         labels = {}
         index = 1
         for _, char in enumerate(sorted(char2img.keys()), 1):
@@ -196,6 +196,7 @@ class LoadImage2Kontext:
             
             # VAEEncode
             pixels = self.load_image(img_path)
+            images.append(pixels)
             latent = vae.encode(pixels[:,:,:,:3])
             latent_list.append(latent)
             # ReferenceLatent
@@ -204,4 +205,4 @@ class LoadImage2Kontext:
             index += 1
           
         stacked = torch.cat(latent_list, dim=0)  # shape (N, C, H/8, W/8)
-        return ({"samples": stacked},  conditions,  "\n".join(captions), json.dumps(labels))
+        return (images, {"samples": stacked},  conditions,  "\n".join(captions), json.dumps(labels))

@@ -143,7 +143,7 @@ class LoadImage2Kontext:
             }
         }
 
-    RETURN_TYPES = ("Image", "LATENT","CONDITIONING", "STRING", "STRING")
+    RETURN_TYPES = ("IMAGE", "LATENT","CONDITIONING", "STRING", "STRING")
     RETURN_NAMES = ("images", "latents", "conditioning", "prompts", "metadata")
     FUNCTION = "load_and_encode"
     CATEGORY = "LoadImage2Kontext"

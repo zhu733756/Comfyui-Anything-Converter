@@ -183,7 +183,7 @@ class LoadImage2Kontext:
         if not conditions:
             raise ValueError("conditions must be given.")
 
-        images, captions,latent_list = [], [], []
+        images, captions, latent = [], [], None
         labels = {}
         index = 1
         for _, char in enumerate(sorted(char2img.keys()), 1):
@@ -195,14 +195,15 @@ class LoadImage2Kontext:
             captions.append(char2prompt.get(char, ""))
             
             # VAEEncode
-            pixels = self.load_image(img_path)
-            images.append(pixels)
-            latent = vae.encode(pixels[:,:,:,:3])
-            latent_list.append(latent)
+            loaded_image = self.load_image(img_path)
+            images.append(loaded_image)
+            
+            latent = vae.encode(loaded_image[:,:,:,:3])
             # ReferenceLatent
             conditions = node_helpers.conditioning_set_values(conditions, {"reference_latents": [latent]}, append=True)
             
             index += 1
-          
-        stacked = torch.cat(latent_list, dim=0)  # shape (N, C, H/8, W/8)
-        return (torch.cat(images, dim=0), {"samples": stacked},  conditions,  "\n".join(captions), json.dumps(labels))
+        
+        images_cat = torch.cat(images, dim=0)
+        # shape (N, C, H/8, W/8)
+        return (images_cat, {"samples": latent } if latent else None,  conditions,  "\n".join(captions), json.dumps(labels))

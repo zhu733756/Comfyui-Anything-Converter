@@ -127,12 +127,12 @@ class LoadImage2Kontext:
         return {
             "required": {
                 "character2prompt_path": ("STRING", {
-                    "default": "",
+                    "default": "output/novels/character2prompt.json",
                     "multiline": False,
                     "tooltip": "人物到prompt映射的json路径"
                 }),
                 "character2img_path": ("STRING", {
-                    "default": "",
+                    "default": "output/metadata/metadata.json",
                     "multiline": False,
                     "tooltip": "人物图片路径2映射的json路径"
                 }),
@@ -172,9 +172,9 @@ class LoadImage2Kontext:
 
         # 1. 读取两个 json
         if not os.path.isabs(character2prompt_path):
-            character2prompt_path = os.path.join(folder_paths.get_input_directory(), character2prompt_path)
+            character2prompt_path = os.path.join(folder_paths.base_path, character2prompt_path)
         if not os.path.isabs(character2img_path):
-            character2img_path = os.path.join(folder_paths.get_input_directory(), character2img_path)
+            character2img_path = os.path.join(folder_paths.base_path, character2img_path)
 
         char2prompt = load_json(character2prompt_path)
         char2img =  load_json(character2img_path)

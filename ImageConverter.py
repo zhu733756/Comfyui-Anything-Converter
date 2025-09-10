@@ -1,30 +1,35 @@
 import os
 import json
 import numpy as np
-from PIL import Image, PngImagePlugin
+import torch
+from PIL import Image, ImageOps, PngImagePlugin
 from .utils import load_json, load_content, logger
 from pathlib import Path
 import folder_paths
+import node_helpers
 from comfy.cli_args import args
+import json
+import os
+from PIL import Image, ImageOps
+import numpy as np
+
 
 
 class SaveImage:
     def __init__(self):
         self.type = "output"
         self.compress_level = 4
-        self.output_metadata="output/metadata/metadata.json"
-        if not os.path.exists(self.output_metadata):
-            Path(self.output_metadata).parent.mkdir(parents=True, exist_ok=True)
 
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
                 "images": ("IMAGE", {"tooltip": "The images to save."}),
+                "labels": ("STRING", {"forceInput": True, "tooltip": "json str mapping for caption"}),
                 "filename_prefix": ("STRING", {"default": "ComfyUI", "tooltip": "File name prefix, supports %date% etc."}),
             },
             "optional": {
-                "labels": ("STRING", {"forceInput": True, "tooltip": "json str mapping for caption"}),
+                "metadata_store_path": ("STRING", {"default": "output/metadata/metadata.json"})
             },
             "hidden": {"prompt": "PROMPT", "extra_pnginfo": "EXTRA_PNGINFO"},
         }
@@ -59,13 +64,16 @@ class SaveImage:
         return "", -1
                  
 
-    def save_images(self, images, filename_prefix="ComfyUI" ,
-                    prompt=None, extra_pnginfo=None,  labels=None):
-        if labels is None:
-            raise "metadata like key:prompt:fixed/no-fixed must given"
+    def save_images(self, images, labels, filename_prefix="ComfyUI" ,
+                    prompt=None, extra_pnginfo=None, metadata_store_path="output/metadata/metadata.json"):
+        if not labels or str(labels).count(":") < 3:
+            raise "labels like key:prompt:fixed/no-fixed must given"
         
-        out_dir = folder_paths.get_output_directory()
-        merged_metadata = load_json(self.output_metadata)
+        if not os.path.exists(metadata_store_path):
+            Path(metadata_store_path).parent.mkdir(parents=True, exist_ok=True)
+        
+        out_dir = folder_paths.base_path
+        merged_metadata = load_json(metadata_store_path)
         label_metadata = [x.strip() for x in str(load_content(labels)).splitlines() if len(x.strip().split(":"))>=3]
   
         for _, image in enumerate(images):
@@ -98,6 +106,104 @@ class SaveImage:
             logger.info(f"image{next_img_idx} saved to {png_path}, prompt key: {prompt_key}")
             img.save(png_path, pnginfo=metadata, compress_level=self.compress_level)
 
-        with open(self.output_metadata, "w") as fb:
+        with open(metadata_store_path, "w") as fb:
             json.dump(merged_metadata, fb, ensure_ascii=False)
+            
         return json.dumps(merged_metadata)
+
+
+class LoadImage2Kontext:
+    """
+    1. 根据 character2prompt_path / character2img_path 读取 json
+    2. 按顺序加载图片 → VAE 编码 → 串联 latents
+    3. 为每张图片追加 ReferenceLatent 到下游条件
+    4. 输出：
+        LATENT          : 串联后的总 latent
+        CONDITIONING    : 已追加所有 reference_latents 的条件
+        show_help       : 帮助信息
+    """
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "character2prompt_path": ("STRING", {
+                    "default": "output/novels/character2prompt.json",
+                    "multiline": False,
+                    "tooltip": "人物到prompt映射的json路径"
+                }),
+                "character2img_path": ("STRING", {
+                    "default": "output/metadata/metadata.json",
+                    "multiline": False,
+                    "tooltip": "人物图片路径2映射的json路径"
+                }),
+                "vae": ("VAE",),
+            },
+            "optional": {
+                "conditions": ("CONDITIONING",),  # 来自上游的条件，可为 None
+            }
+        }
+
+    RETURN_TYPES = ("IMAGE", "LATENT","CONDITIONING", "STRING", "STRING")
+    RETURN_NAMES = ("images", "latents", "conditioning", "prompts", "metadata")
+    FUNCTION = "load_and_encode"
+    CATEGORY = "LoadImage2Kontext"
+
+    # ------------ 工具函数 ------------
+    @staticmethod
+    def load_image(path):
+        """把 ComfyUI 路径 → torch tensor (1,H,W,3)"""
+        if not os.path.isabs(path):
+            path = os.path.join(folder_paths.get_input_directory(), path)
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"Image not found: {path}")
+
+        img = Image.open(path).convert("RGB")
+        img = ImageOps.exif_transpose(img)  # 处理旋转信息
+        img = np.array(img, dtype=np.float32) / 255.0
+        img = torch.from_numpy(img)[None,]  # shape (1,H,W,3)
+        return img
+
+    # ------------ 主函数 ------------
+    def load_and_encode(self,
+                        character2prompt_path,
+                        character2img_path,
+                        vae,
+                        conditions):
+
+        # 1. 读取两个 json
+        if not os.path.isabs(character2prompt_path):
+            character2prompt_path = os.path.join(folder_paths.base_path, character2prompt_path)
+        if not os.path.isabs(character2img_path):
+            character2img_path = os.path.join(folder_paths.base_path, character2img_path)
+
+        char2prompt = load_json(character2prompt_path)
+        char2img =  load_json(character2img_path)
+ 
+        # 2. 逐个图片编码
+        if not conditions:
+            raise ValueError("conditions must be given.")
+
+        images, captions, latent = [], [], None
+        labels = {}
+        index = 1
+        for _, char in enumerate(sorted(char2img.keys()), 1):
+            img_path = char2img[char]
+            if char == "idx" or not os.path.exists(img_path):
+                continue
+            
+            labels[char] = f'the character in image{index}'
+            captions.append(char2prompt.get(char, ""))
+            
+            # VAEEncode
+            loaded_image = self.load_image(img_path)
+            images.append(loaded_image)
+            
+            latent = vae.encode(loaded_image[:,:,:,:3])
+            # ReferenceLatent
+            conditions = node_helpers.conditioning_set_values(conditions, {"reference_latents": [latent]}, append=True)
+            
+            index += 1
+        
+        images_cat = torch.cat(images, dim=0)
+        # shape (N, C, H/8, W/8)
+        return (images_cat,  {"samples": latent } , conditions,  "\n".join(captions), json.dumps(labels))

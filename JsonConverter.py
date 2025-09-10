@@ -15,8 +15,6 @@ class JsonCombiner:
             "required": {
                 "json_a": ("STRING", {"multiline": True, "default": ""}),
                 "json_b": ("STRING", {"multiline": True, "default": ""}),
-                "json_a_mode": (["file", "string"], {"default": "string"}),
-                "json_b_mode": (["file", "string"], {"default": "string"}),
                 "merge_strategy": (["deep_merge", "a_first", "b_first", "value_ab"], {"default": "deep_merge"}),
             },
             "optional": {
@@ -31,9 +29,9 @@ class JsonCombiner:
     FUNCTION = "combine"
     CATEGORY = "FileConverter"
 
-    def combine(self, json_a, json_b, json_a_mode, json_b_mode, merge_strategy, indent=None, output_mode="", output_path=""):
-        a = load_json(json_a, json_a_mode)
-        b = load_json(json_b, json_b_mode)
+    def combine(self, json_a, json_b, merge_strategy, indent=None, output_mode="", output_path=""):
+        a = load_json(json_a)
+        b = load_json(json_b)
 
         if merge_strategy == "deep_merge":
             merged = self._deep_merge(a, b)
@@ -50,12 +48,14 @@ class JsonCombiner:
         if indent <= 0 or indent is None:
             indent = None
         if output_mode == "file":
+            import folder_paths
             if not output_path.strip():
                 fd, output_path = tempfile.mkstemp(suffix=".json", text=True)
                 os.close(fd)
             else:
                 Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
+            output_path = os.path.join(folder_paths.base_path, output_path)
             with open(output_path, "w", encoding="utf-8") as f:
                 json.dump(merged, f, ensure_ascii=False, separators=(',', ':') if indent is None else (',', ': '))
             return (output_path,)
@@ -132,7 +132,7 @@ class JsonPromptProcessor:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "metadata": ("STRING", {"multiline": False}),
+                "metadata": ("STRING", {"multiline": False, "default": "output/novels/character2prompt.json"}),
                 "fixed": ("STRING", {"tooltip": "the prompt to be fixed and not generate."}),
             }
         }
